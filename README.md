@@ -99,9 +99,11 @@ It waits for a handheld, shows a pairing code when needed, then plays the stream
 
 ## NoctDock Azahar
 
-NoctDock Azahar is a separate Azahar fork for a more natural 3DS-style setup: top screen on the receiver, bottom screen stays on the handheld, touch and controls remain local.
+**[NoctDock Azahar](https://github.com/glowseedstudio/noctdock-azahar)** is a separate Azahar fork for a more natural 3DS-style setup: top screen on the receiver, bottom screen stays on the handheld, touch and controls remain local.
 
 This is separate from the main NoctDock app so the emulator stays cleanly separated, properly attributed, and easier for the community to work on. The current direction is to avoid slow frame readback where possible and render directly into an encoder surface for better performance.
+
+Repository: https://github.com/glowseedstudio/noctdock-azahar
 
 ---
 
@@ -146,6 +148,13 @@ NoctDock is still young, so the most useful help right now is testing on real de
 When opening an issue, please include device model, Android version, receiver type, network setup, selected profile, and whether you were on Wi‑Fi or Ethernet. See [CONTRIBUTING.md](CONTRIBUTING.md) when it is published with the source tree.
 
 ---
+
+## Links
+
+| | |
+| -- | -- |
+| **NoctDock Azahar** | https://github.com/glowseedstudio/noctdock-azahar |
+| **Project page** | https://glowseedstudio.github.io/noctdock/ |
 
 ## License
 
