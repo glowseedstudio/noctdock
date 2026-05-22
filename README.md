@@ -195,6 +195,17 @@ NoctDock is still early. Performance depends heavily on the handheld, receiver, 
 
 For best results, start with Balanced or Quality before trying Sharp/Cinema. 1080p modes need a strong local network and a capable receiver.
 
+## Recommended test setup
+
+If you are trying NoctDock for the first time or reporting issues, this local network setup gives the fairest results:
+
+- **Receiver on Ethernet** when possible (Shield, TV box, or PC bridge) — Wi‑Fi on the TV side is the most common bottleneck for Sharp and Cinema.
+- **Handheld on 5 GHz or 6 GHz Wi‑Fi**, not 2.4 GHz — more airtime and less congestion for real-time streaming.
+- **Wi‑Fi 6 (or better) router/AP** on the path between handheld and receiver helps at 720p60 and above.
+- **Avoid mesh/repeaters** if you can — use one main AP or a wired backhaul; mesh hops add latency and jitter fast.
+- **Same LAN / subnet** — sender and receiver must discover each other locally; guest networks and AP isolation break pairing.
+- **Start with Balanced or Quality**, run **Test My Connection**, then try Sharp or Cinema only if the test and play feel solid.
+
 ---
 
 ## Contributing

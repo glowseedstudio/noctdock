@@ -261,6 +261,27 @@
       </div>
     </section>
 
+    <section class="wrap" id="testing">
+      <span class="section-label">Testing</span>
+      <h2>Best setup for trying NoctDock</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          NoctDock is sensitive to your LAN. For the fairest first test or bug report, aim for this layout:
+        </p>
+        <ul>
+          <li><strong>Receiver on Ethernet</strong> when you can (TV box, Shield, etc.) — Wi‑Fi on the display side is often what limits Sharp and Cinema.</li>
+          <li><strong>Handheld on 5 GHz or 6 GHz</strong>, not 2.4 GHz — better throughput and less interference for live video.</li>
+          <li><strong>Wi‑Fi 6 (or newer) AP/router</strong> on the path between handheld and receiver.</li>
+          <li><strong>No mesh / repeaters</strong> if possible — one main access point or wired backhaul; extra hops add latency and jitter.</li>
+          <li><strong>Same local network</strong> — avoid guest Wi‑Fi and client isolation; both apps must see each other on the LAN.</li>
+          <li><strong>Profiles:</strong> start <strong>Balanced</strong> or <strong>Quality</strong>, use <strong>Test My Connection</strong>, then try Sharp or Cinema only if play stays smooth.</li>
+        </ul>
+        <p>
+          Performance still depends on the handheld SoC, codec support, and the game you are running — a good network does not fix a weak encoder path by itself.
+        </p>
+      </div>
+    </section>
+
     <section class="wrap" id="azahar">
       <span class="section-label">NoctDock Azahar</span>
       <h2>3DS top screen on the TV</h2>
@@ -268,8 +289,7 @@
         <p>
           <a href="https://github.com/glowseedstudio/noctdock-azahar">NoctDock Azahar</a> is a separate Azahar fork for a more natural 3DS setup: top screen on the receiver, bottom screen and
           touch on the handheld. Kept apart from the main apps so the emulator stays properly attributed and
-          easier for the community to work on. The current direction favours rendering into an encoder surface
-          rather than slow frame readback where possible.
+          easier for the community to work on. Where supported, export uses a direct encoder surface with compatibility fallbacks when needed.
         </p>
         <p>
           <a href="https://github.com/glowseedstudio/noctdock-azahar">github.com/glowseedstudio/noctdock-azahar</a>

@@ -184,8 +184,10 @@ When opening an issue, include device model, Android version, receiver type, Wi�
 
 ## Tips
 
+- **Receiver on Ethernet** when possible; handheld on **5 GHz or 6 GHz** Wi‑Fi (not 2.4 GHz).
+- **Wi‑Fi 6** router/AP helps; **avoid mesh/repeaters** if you can — use one AP or wired backhaul.
+- Same LAN — no guest network or client isolation between sender and receiver.
 - Start with **Balanced** and only move up after **Test My Connection** passes.
-- **Ethernet on the receiver** helps for 1080p and busy Wi‑Fi homes.
 - If HEVC struggles, the app should fall back to AVC — check System Status for the active codec.
 - Revoking screen capture in Android settings will stop Console Mode immediately.
 - For Azahar LAN debug metrics only, see [STREAM_WATCH.md](https://github.com/glowseedstudio/noctdock/blob/main/STREAM_WATCH.md) (off by default; local network only).
