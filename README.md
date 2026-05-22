@@ -144,7 +144,7 @@ NoctDock is built around a simple privacy promise: **local network only.** No ac
 
 NoctDock is in active development. The project currently includes separate sender, receiver, and shared core modules; local discovery and pairing; AVC and HEVC streaming work; reconnect and rebroadcast hardening; connection testing; Game Hub launcher work; Screen Cloak; 60 Hz helper; Android TV and Google TV receiver support; phone and tablet receiver support; and NoctDock Azahar integration work.
 
-Source and release builds will be published as the project stabilises.
+Source is in this repository; release APKs will be published as the project stabilises.
 
 ---
 
@@ -172,7 +172,7 @@ Ongoing areas include more receiver testing, a stronger Android handheld support
 
 NoctDock is still young, so the most useful help right now is testing on real devices, reporting receiver compatibility, sharing Stream Watch or System Status reports, trying different routers and Wi‑Fi setups, improving documentation, cleaning code, and helping with Android media/codec or Azahar export performance.
 
-When opening an issue, please include device model, Android version, receiver type, network setup, selected profile, and whether you were on Wi‑Fi or Ethernet. See [CONTRIBUTING.md](CONTRIBUTING.md) when it is published with the source tree.
+When opening an issue, please include device model, Android version, receiver type, network setup, selected profile, and whether you were on Wi‑Fi or Ethernet. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
