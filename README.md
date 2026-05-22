@@ -8,6 +8,8 @@
 
 <p align="center">
   <a href="https://glowseedstudio.github.io/noctdock/">Project page</a>
+  ·
+  <a href="https://github.com/glowseedstudio/noctdock/blob/main/docs/USER_GUIDE.md">User guide</a>
 </p>
 
 NoctDock lets an Android handheld send its screen to another display on your local network, while the handheld stays in your hands as the controller.
@@ -30,6 +32,8 @@ Pre-built APKs (Android 10+): [**Latest release**](https://github.com/glowseedst
 | **NoctDock-Receiver-*-release.apk** | `com.glowseed.noctdock.receiver` | TV, tablet, or display |
 
 Debug and release use the same package ID (install one sender and one receiver at a time). For 3DS top-screen play, also install **[NoctDock Azahar](https://github.com/glowseedstudio/noctdock-azahar/releases/latest)**.
+
+New here? Read the **[User guide](docs/USER_GUIDE.md)** for a full walkthrough of sender, receiver, pairing, Console Mode, profiles, and Azahar.
 
 ---
 
