@@ -191,6 +191,8 @@ NoctDock is still young, so the most useful help right now is testing on real de
 
 When opening an issue, please include device model, Android version, receiver type, network setup, selected profile, and whether you were on Wi‑Fi or Ethernet. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**Maintainer note:** This is a side project. I have a full-time job and work on NoctDock in my own time. I will try as hard as I can to get through issues and replies as quickly as possible, but I am human — not Superman. Thanks for your patience.
+
 ---
 
 ## Links
