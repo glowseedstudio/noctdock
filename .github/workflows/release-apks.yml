@@ -1,0 +1,79 @@
+# Builds sender + receiver debug and release APKs and attaches them to a GitHub Release.
+
+name: NoctDock release APKs
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-apks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Set tag name
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "GIT_TAG_NAME=${{ github.ref_name }}" >> "$GITHUB_ENV"
+          else
+            echo "GIT_TAG_NAME=manual-${{ github.run_number }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build debug and release APKs
+        run: |
+          ./gradlew :noctdock-sender:assembleDebug :noctdock-sender:assembleRelease \
+            :noctdock-receiver:assembleDebug :noctdock-receiver:assembleRelease --no-daemon
+          mkdir -p noctdock-release-apks
+          cp noctdock-sender/build/outputs/apk/debug/noctdock-sender-debug.apk \
+            "noctdock-release-apks/NoctDock-Sender-${GIT_TAG_NAME}-debug.apk"
+          cp noctdock-sender/build/outputs/apk/release/noctdock-sender-release.apk \
+            "noctdock-release-apks/NoctDock-Sender-${GIT_TAG_NAME}-release.apk"
+          cp noctdock-receiver/build/outputs/apk/debug/noctdock-receiver-debug.apk \
+            "noctdock-release-apks/NoctDock-Receiver-${GIT_TAG_NAME}-debug.apk"
+          cp noctdock-receiver/build/outputs/apk/release/noctdock-receiver-release.apk \
+            "noctdock-release-apks/NoctDock-Receiver-${GIT_TAG_NAME}-release.apk"
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: NoctDock ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            noctdock-release-apks/*.apk
+          body: |
+            Pre-built **NoctDock Sender** and **NoctDock Receiver** APKs for Android 10+ (API 29).
+
+            | APK | Package | Install on |
+            | --- | --- | --- |
+            | `NoctDock-Sender-*-debug.apk` | `com.glowseed.noctdock.sender` | Handheld / phone |
+            | `NoctDock-Sender-*-release.apk` | `com.glowseed.noctdock.sender` | Handheld / phone |
+            | `NoctDock-Receiver-*-debug.apk` | `com.glowseed.noctdock.receiver` | TV, tablet, or second device |
+            | `NoctDock-Receiver-*-release.apk` | `com.glowseed.noctdock.receiver` | TV, tablet, or second device |
+
+            Debug and release share the same package ID (only one sender and one receiver installed at a time per variant).
+
+            For 3DS top-screen play, also install **[NoctDock Azahar](https://github.com/glowseedstudio/noctdock-azahar/releases/latest)**.
+
+      - name: Upload APK artifacts (manual run)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: noctdock-apks-${{ github.run_number }}
+          path: noctdock-release-apks/*.apk

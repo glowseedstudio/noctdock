@@ -18,6 +18,21 @@ No accounts. No cloud relay. No ads. No analytics.
 
 ---
 
+## Downloads
+
+Pre-built APKs (Android 10+): [**Latest release**](https://github.com/glowseedstudio/noctdock/releases/latest)
+
+| APK | Package | Device |
+| --- | --- | --- |
+| **NoctDock-Sender-*-debug.apk** | `com.glowseed.noctdock.sender` | Handheld / phone |
+| **NoctDock-Sender-*-release.apk** | `com.glowseed.noctdock.sender` | Handheld / phone |
+| **NoctDock-Receiver-*-debug.apk** | `com.glowseed.noctdock.receiver` | TV, tablet, or display |
+| **NoctDock-Receiver-*-release.apk** | `com.glowseed.noctdock.receiver` | TV, tablet, or display |
+
+Debug and release use the same package ID (install one sender and one receiver at a time). For 3DS top-screen play, also install **[NoctDock Azahar](https://github.com/glowseedstudio/noctdock-azahar/releases/latest)**.
+
+---
+
 ## Screenshots
 
 <p align="center">
@@ -146,7 +161,7 @@ NoctDock is built around a simple privacy promise: **local network only.** No ac
 
 NoctDock is in active development. The project currently includes separate sender, receiver, and shared core modules; local discovery and pairing; AVC and HEVC streaming work; reconnect and rebroadcast hardening; connection testing; Game Hub launcher work; Screen Cloak; 60 Hz helper; Android TV and Google TV receiver support; phone and tablet receiver support; and NoctDock Azahar integration work.
 
-Source is in this repository. Sender and receiver release APKs are still being set up; **NoctDock Azahar** APKs are on [noctdock-azahar Releases](https://github.com/glowseedstudio/noctdock-azahar/releases/latest).
+Source is in this repository. Sender, receiver, and [NoctDock Azahar](https://github.com/glowseedstudio/noctdock-azahar/releases/latest) APKs are on GitHub Releases.
 
 ---
 
