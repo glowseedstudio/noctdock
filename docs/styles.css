@@ -510,6 +510,42 @@ tr:hover td {
   background: rgba(12, 16, 24, 0.5);
 }
 
+/* Screenshots */
+.screenshots {
+  margin-top: 1.5rem;
+}
+
+.screenshot {
+  margin-bottom: 2.5rem;
+}
+
+.screenshot img {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+}
+
+.screenshot figcaption {
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.screenshot-grid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .screenshot-grid.two {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* Footer */
 footer {
   margin-top: 2rem;

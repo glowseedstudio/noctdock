@@ -18,6 +18,33 @@ No accounts. No cloud relay. No ads. No analytics.
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/1.png" width="720" alt="NoctDock Sender — dock portal while looking for a screen">
+</p>
+<p align="center"><em>Sender Game Hub — dock portal before a screen is paired.</em></p>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<p align="center"><img src="docs/screenshots/2.png" width="100%" alt="Game Hub launcher with favourites and emulator tiles"></p>
+<p align="center"><em>Trusted screen ready — launcher grid with favourites.</em></p>
+</td>
+<td width="50%" valign="top">
+<p align="center"><img src="docs/screenshots/3.png" width="100%" alt="Tile actions for launch and favourites"></p>
+<p align="center"><em>Tile menu — favourite toggle and Console Mode.</em></p>
+</td>
+</tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/4.png" width="720" alt="NoctDock Azahar launch picker on the sender">
+</p>
+<p align="center"><em>NoctDock Azahar — choose normal Launch or Launch in 3DS Mode.</em></p>
+
+---
+
 ## Why I made this
 
 I started NoctDock because I love Android gaming handhelds, but I kept running into the same problem: these devices are powerful enough to feel like little consoles, yet they are still mostly treated like small-screen-only devices.
