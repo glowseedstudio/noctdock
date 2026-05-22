@@ -1,0 +1,52 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Local LAN streaming/discovery only. NoctDock does not use internet, cloud, or account services. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Used only for Android playback capture so Console Mode can send local app audio to NoctDock TV. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Held only during Console Mode to keep local Wi-Fi latency low. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Requested only when Screen Cloak is enabled. Used for a transparent brightness-only overlay. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Requested only for the optional Screen Cloak brightness fallback. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
+    <queries>
+        <package android:name="com.glowseed.noctdock.azahar" />
+        <package android:name="com.glowseed.noctdock.azahar.debug" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
+        android:theme="@style/Theme.NoctDock">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.NoctDock">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".ScreenCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+    </application>
+</manifest>
