@@ -132,6 +132,8 @@ This is separate from the main NoctDock app so the emulator stays cleanly separa
 
 Repository: https://github.com/glowseedstudio/noctdock-azahar
 
+**Install the emulator APK:** [latest release](https://github.com/glowseedstudio/noctdock-azahar/releases/latest) (`*-debug.apk` for testing, `*-release.apk` for day-to-day). Android 10+; debug and release packages can coexist.
+
 ---
 
 ## Privacy
@@ -144,7 +146,7 @@ NoctDock is built around a simple privacy promise: **local network only.** No ac
 
 NoctDock is in active development. The project currently includes separate sender, receiver, and shared core modules; local discovery and pairing; AVC and HEVC streaming work; reconnect and rebroadcast hardening; connection testing; Game Hub launcher work; Screen Cloak; 60 Hz helper; Android TV and Google TV receiver support; phone and tablet receiver support; and NoctDock Azahar integration work.
 
-Source is in this repository; release APKs will be published as the project stabilises.
+Source is in this repository. Sender and receiver release APKs are still being set up; **NoctDock Azahar** APKs are on [noctdock-azahar Releases](https://github.com/glowseedstudio/noctdock-azahar/releases/latest).
 
 ---
 

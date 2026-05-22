@@ -75,8 +75,7 @@ internal fun gameHubTopBarIndexForPanel(panel: GameHubHomePanel): Int = when (pa
 }
 
 /** Focus ring on top-bar toggles only — never while a grid/list below has the active pointer. */
-internal fun gameHubTopBarTabSelected(buttonIndex: Int, topBarFocused: Boolean, topBarIndex: Int, homePanel: GameHubHomePanel): Boolean =
-    topBarFocused && topBarIndex == buttonIndex
+internal fun gameHubTopBarTabSelected(buttonIndex: Int, topBarFocused: Boolean, topBarIndex: Int, homePanel: GameHubHomePanel): Boolean = topBarFocused && topBarIndex == buttonIndex
 
 internal enum class GameHubLibraryFilter(val label: String) {
     All("All"),

@@ -74,13 +74,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.Key
@@ -102,6 +101,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.glowseed.noctdock.core.ConsoleModeState
 import com.glowseed.noctdock.core.DiscoveredReceiver
 import com.glowseed.noctdock.core.LocalLibraryApp
@@ -779,631 +779,631 @@ internal fun GameHubHomeScreen(
     }
 
     GameHubGradientPhaseProvider(reducedMotion = reducedMotion) {
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        val viewport = remember(maxWidth, maxHeight) { GameHubViewport(maxWidth, maxHeight) }
-        val gridLayout =
-            remember(maxWidth, maxHeight, launcherItems.size, libraryGridEntries.size, availableProfiles.size, homePanel) {
-                val count =
-                    when (homePanel) {
-                        GameHubHomePanel.Library -> libraryGridEntries.size.coerceAtLeast(1)
-                        GameHubHomePanel.Screens -> gameHubScreensItemCount(uiState.receivers.size)
-                        GameHubHomePanel.ConsoleModes -> gameHubConsoleModesItemCount(availableProfiles.size)
-                        GameHubHomePanel.Settings -> 1
-                        GameHubHomePanel.Launcher -> launcherItems.size.coerceAtLeast(1)
-                    }
-                GameHubViewport.launcherGridLayout(maxWidth, maxHeight, count)
-            }
-        Column(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = viewport.edgePaddingH, vertical = viewport.edgePaddingV)
-                .focusRequester(homeInputFocus)
-                .focusable(focusZone != GameHubFocusZone.TopBar)
-                .onPreviewKeyEvent { event ->
-                    if (event.gameHubIsBackDown()) {
-                        if (showAzaharModePicker || tileMenu != null) {
-                            dismissOverlayMenus()
-                            return@onPreviewKeyEvent true
-                        }
-                        if (isAtHomeAnchor()) {
-                            return@onPreviewKeyEvent false
-                        }
-                        navigateBackToHomeAnchor()
-                        return@onPreviewKeyEvent true
-                    } else if (event.type != KeyEventType.KeyDown) {
-                        return@onPreviewKeyEvent false
-                    } else if (showAzaharModePicker || tileMenu != null) {
-                        return@onPreviewKeyEvent false
-                    } else {
-                        val launcherGridActive =
-                            mode == GameHubHomeMode.Launcher &&
-                                homePanel == GameHubHomePanel.Launcher &&
-                                launcherItems.isNotEmpty()
-                        val libraryGridActive = homePanel == GameHubHomePanel.Library
-                        val screensListActive =
-                            homePanel == GameHubHomePanel.Screens &&
-                                focusZone == GameHubFocusZone.ScreensList
-                        val consoleModesListActive =
-                            homePanel == GameHubHomePanel.ConsoleModes &&
-                                focusZone == GameHubFocusZone.ConsoleModesList
-                        val settingsPanelActive =
-                            homePanel == GameHubHomePanel.Settings &&
-                                focusZone == GameHubFocusZone.SettingsPanel
-                        val screensCount = gameHubScreensItemCount(uiState.receivers.size)
-                        val consoleModesCount = gameHubConsoleModesItemCount(availableProfiles.size)
-                        val gridCount =
-                            when {
-                                libraryGridActive -> libraryGridEntries.size
-                                screensListActive -> screensCount
-                                consoleModesListActive -> consoleModesCount
-                                settingsPanelActive -> settingsFocusCount
-                                else -> launcherItems.size
-                            }
-                        val gridHasTiles = gridCount > 0
-                        when {
-                            event.gameHubIsAcceptDown() -> {
-                                when (focusZone) {
-                                    GameHubFocusZone.LibraryFilters -> {
-                                        libraryFilter = GameHubLibraryFilter.entries[libraryFilterIndex]
-                                        focusedIndex = 0
-                                        if (libraryGridEntries.isNotEmpty()) activateLauncherGrid()
-                                        true
-                                    }
-
-                                    GameHubFocusZone.ScreensList -> {
-                                        if (uiState.receivers.isEmpty()) {
-                                            viewModel.startDiscovery()
-                                        } else {
-                                            uiState.receivers.getOrNull(focusedIndex)?.let(viewModel::connect)
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.ConsoleModesList -> {
-                                        gameHubConsoleModesFocusKind(focusedIndex, availableProfiles.size)?.let { kind ->
-                                            gameHubConsoleModesPerformAccept(
-                                                kind = kind,
-                                                uiState = uiState,
-                                                viewModel = viewModel,
-                                                availableProfiles = availableProfiles,
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.Grid -> {
-                                        if (launcherGridActive) {
-                                            launcherItems.getOrNull(focusedIndex)?.let(onTileActivate)
-                                        } else if (libraryGridActive) {
-                                            when (val entry = libraryGridEntries.getOrNull(focusedIndex)) {
-                                                is GameHubLibraryGridEntry.App ->
-                                                    viewModel.launchOnly(entry.item.model)
-
-                                                is GameHubLibraryGridEntry.AddCandidate ->
-                                                    viewModel.addLibraryApp(entry.item.model)
-
-                                                null -> Unit
-                                            }
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.Portal -> {
-                                        if (portal.primaryEnabled) onPrimaryPortal()
-                                        true
-                                    }
-
-                                    GameHubFocusZone.SettingsPanel -> {
-                                        gameHubSettingsFocusItemAt(settingsRows, focusedIndex)?.let { item ->
-                                            gameHubSettingsPerformAccept(
-                                                item = item,
-                                                context = context,
-                                                overlayAllowed = settingsOverlayAllowed,
-                                                onScreenCloakModeSelected = onScreenCloakModeSelected,
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.TopBar -> false
-                                }
-                            }
-
-                            event.key == Key.DirectionDown -> {
-                                when (focusZone) {
-                                    GameHubFocusZone.TopBar ->
-                                        when {
-                                            homePanel == GameHubHomePanel.Launcher -> {
-                                                when (mode) {
-                                                    GameHubHomeMode.Portal -> {
-                                                        focusZone = GameHubFocusZone.Portal
-                                                        portalFocus.requestFocus()
-                                                        true
-                                                    }
-
-                                                    GameHubHomeMode.Launcher ->
-                                                        if (gridHasTiles) {
-                                                            focusedIndex = 0
-                                                            activateLauncherGrid()
-                                                            true
-                                                        } else {
-                                                            false
-                                                        }
-                                                }
-                                            }
-
-                                            homePanel == GameHubHomePanel.Library -> {
-                                                activateLibraryFilters()
-                                                true
-                                            }
-
-                                            homePanel == GameHubHomePanel.Screens -> {
-                                                focusedIndex = 0
-                                                activateScreensList()
-                                                true
-                                            }
-
-                                            homePanel == GameHubHomePanel.ConsoleModes -> {
-                                                focusedIndex =
-                                                    gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
-                                                activateConsoleModesList()
-                                                true
-                                            }
-
-                                            homePanel == GameHubHomePanel.Settings -> {
-                                                activateSettingsPanel()
-                                                true
-                                            }
-
-                                            else -> false
-                                        }
-
-                                    GameHubFocusZone.LibraryFilters ->
-                                        if (libraryGridEntries.isNotEmpty()) {
-                                            focusedIndex = 0
-                                            activateLauncherGrid()
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    GameHubFocusZone.ScreensList ->
-                                        if (gridHasTiles) {
-                                            focusedIndex = gameHubScreensMoveDown(focusedIndex, gridCount)
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    GameHubFocusZone.ConsoleModesList ->
-                                        if (gridHasTiles) {
-                                            focusedIndex = gameHubConsoleModesMoveDown(focusedIndex, gridCount)
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    GameHubFocusZone.SettingsPanel ->
-                                        if (gridHasTiles) {
-                                            focusedIndex = gameHubSettingsMoveDown(focusedIndex, gridCount)
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    GameHubFocusZone.Grid ->
-                                        if (gridHasTiles) {
-                                            focusedIndex =
-                                                when {
-                                                    screensListActive ->
-                                                        gameHubScreensMoveDown(focusedIndex, gridCount)
-
-                                                    consoleModesListActive ->
-                                                        gameHubConsoleModesMoveDown(focusedIndex, gridCount)
-
-                                                    settingsPanelActive ->
-                                                        gameHubSettingsMoveDown(focusedIndex, gridCount)
-
-                                                    else ->
-                                                        gameHubGridMoveDown(focusedIndex, gridLayout.columns, gridCount)
-                                                }
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    GameHubFocusZone.Portal -> false
-                                }
-                            }
-
-                            event.key == Key.DirectionUp -> {
-                                when (focusZone) {
-                                    GameHubFocusZone.Grid,
-                                    GameHubFocusZone.ScreensList,
-                                    GameHubFocusZone.ConsoleModesList,
-                                    GameHubFocusZone.SettingsPanel,
-                                    ->
-                                        if (screensListActive) {
-                                            if (focusedIndex == 0) {
-                                                focusTopBarButton(GAME_HUB_TOP_BAR_SCREENS)
-                                                true
-                                            } else {
-                                                focusedIndex = gameHubScreensMoveUp(focusedIndex, gridCount)
-                                                true
-                                            }
-                                        } else if (consoleModesListActive) {
-                                            val consoleModesTopIndex =
-                                                gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
-                                            if (focusedIndex <= consoleModesTopIndex) {
-                                                focusTopBarButton(GAME_HUB_TOP_BAR_CONSOLE_MODES)
-                                                true
-                                            } else {
-                                                focusedIndex = gameHubConsoleModesMoveUp(focusedIndex, gridCount)
-                                                true
-                                            }
-                                        } else if (settingsPanelActive) {
-                                            if (focusedIndex == 0) {
-                                                focusTopBarButton(GAME_HUB_TOP_BAR_SETTINGS)
-                                                true
-                                            } else {
-                                                focusedIndex = gameHubSettingsMoveUp(focusedIndex, gridCount)
-                                                true
-                                            }
-                                        } else if (focusedIndex / gridLayout.columns == 0) {
-                                            when (homePanel) {
-                                                GameHubHomePanel.Library -> activateLibraryFilters()
-                                                else -> focusTopBarButton(gameHubTopBarIndexForPanel(homePanel))
-                                            }
-                                            true
-                                        } else if (gridHasTiles) {
-                                            focusedIndex =
-                                                gameHubGridMoveUp(focusedIndex, gridLayout.columns, gridCount)
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    GameHubFocusZone.LibraryFilters -> {
-                                        focusTopBarButton(GAME_HUB_TOP_BAR_LIBRARY)
-                                        true
-                                    }
-
-                                    GameHubFocusZone.Portal -> {
-                                        focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
-                                        true
-                                    }
-
-                                    GameHubFocusZone.TopBar -> false
-                                }
-                            }
-
-                            event.key == Key.DirectionRight -> {
-                                when (focusZone) {
-                                    GameHubFocusZone.TopBar -> {
-                                        focusTopBarButton((topBarIndex + 1).coerceAtMost(GAME_HUB_TOP_BAR_LAST_INDEX))
-                                        true
-                                    }
-
-                                    GameHubFocusZone.ConsoleModesList -> {
-                                        gameHubConsoleModesFocusKind(focusedIndex, availableProfiles.size)?.let { kind ->
-                                            gameHubConsoleModesPerformHorizontal(
-                                                kind = kind,
-                                                forward = true,
-                                                uiState = uiState,
-                                                viewModel = viewModel,
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.ScreensList -> false
-
-                                    GameHubFocusZone.SettingsPanel -> {
-                                        gameHubSettingsFocusItemAt(settingsRows, focusedIndex)?.let { item ->
-                                            gameHubSettingsPerformHorizontal(
-                                                item = item,
-                                                forward = true,
-                                                context = context,
-                                                onScreenCloakModeSelected = onScreenCloakModeSelected,
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.LibraryFilters -> {
-                                        val next =
-                                            (libraryFilterIndex + 1)
-                                                .coerceAtMost(GameHubLibraryFilter.entries.lastIndex)
-                                        libraryFilterIndex = next
-                                        libraryFilter = GameHubLibraryFilter.entries[next]
-                                        focusedIndex = 0
-                                        true
-                                    }
-
-                                    GameHubFocusZone.Grid ->
-                                        if (gridHasTiles && !screensListActive && !consoleModesListActive && !settingsPanelActive) {
-                                            focusedIndex =
-                                                gameHubGridMoveRight(focusedIndex, gridLayout.columns, gridCount)
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    else -> false
-                                }
-                            }
-
-                            event.key == Key.DirectionLeft -> {
-                                when (focusZone) {
-                                    GameHubFocusZone.TopBar -> {
-                                        focusTopBarButton((topBarIndex - 1).coerceAtLeast(0))
-                                        true
-                                    }
-
-                                    GameHubFocusZone.ConsoleModesList -> {
-                                        gameHubConsoleModesFocusKind(focusedIndex, availableProfiles.size)?.let { kind ->
-                                            gameHubConsoleModesPerformHorizontal(
-                                                kind = kind,
-                                                forward = false,
-                                                uiState = uiState,
-                                                viewModel = viewModel,
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.ScreensList -> false
-
-                                    GameHubFocusZone.SettingsPanel -> {
-                                        gameHubSettingsFocusItemAt(settingsRows, focusedIndex)?.let { item ->
-                                            gameHubSettingsPerformHorizontal(
-                                                item = item,
-                                                forward = false,
-                                                context = context,
-                                                onScreenCloakModeSelected = onScreenCloakModeSelected,
-                                            )
-                                        }
-                                        true
-                                    }
-
-                                    GameHubFocusZone.LibraryFilters -> {
-                                        val next = (libraryFilterIndex - 1).coerceAtLeast(0)
-                                        libraryFilterIndex = next
-                                        libraryFilter = GameHubLibraryFilter.entries[next]
-                                        focusedIndex = 0
-                                        true
-                                    }
-
-                                    GameHubFocusZone.Grid ->
-                                        if (gridHasTiles && !screensListActive && !consoleModesListActive && !settingsPanelActive) {
-                                            focusedIndex =
-                                                gameHubGridMoveLeft(focusedIndex, gridLayout.columns, gridCount)
-                                            true
-                                        } else {
-                                            false
-                                        }
-
-                                    else -> false
-                                }
-                            }
-
-                            else -> false
-                        }
-                    }
-                },
-            verticalArrangement = Arrangement.spacedBy(viewport.sectionGap),
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
-            GameHubTopBar(
-                uiState = uiState,
-                mode = mode,
-                portalStatus = portal.statusPill,
-                homeFocus = homeFocus,
-                libraryFocus = libraryFocus,
-                screensFocus = screensFocus,
-                consoleModesFocus = consoleModesFocus,
-                settingsFocus = settingsFocus,
-                iconButtonSize = viewport.settingsCogSize,
-                reducedMotion = reducedMotion,
-                topBarIndex = topBarIndex,
-                focusZone = focusZone,
-                homePanel = homePanel,
-                onHomeFocusChanged = {
-                    homeBarFocused = it
-                    if (it) {
-                        focusZone = GameHubFocusZone.TopBar
-                        topBarIndex = GAME_HUB_TOP_BAR_HOME
-                    }
-                },
-                onLibraryFocusChanged = {
-                    libraryBarFocused = it
-                    if (it) {
-                        focusZone = GameHubFocusZone.TopBar
-                        topBarIndex = GAME_HUB_TOP_BAR_LIBRARY
-                    }
-                },
-                onScreensFocusChanged = {
-                    screensBarFocused = it
-                    if (it) {
-                        focusZone = GameHubFocusZone.TopBar
-                        topBarIndex = GAME_HUB_TOP_BAR_SCREENS
-                    }
-                },
-                onConsoleModesFocusChanged = {
-                    consoleModesBarFocused = it
-                    if (it) {
-                        focusZone = GameHubFocusZone.TopBar
-                        topBarIndex = GAME_HUB_TOP_BAR_CONSOLE_MODES
-                    }
-                },
-                onSettingsFocusChanged = {
-                    settingsBarFocused = it
-                    if (it) {
-                        focusZone = GameHubFocusZone.TopBar
-                        topBarIndex = GAME_HUB_TOP_BAR_SETTINGS
-                    }
-                },
-                onGoHome = { selectTopBarTab(GAME_HUB_TOP_BAR_HOME) },
-                onOpenLibrary = { selectTopBarTab(GAME_HUB_TOP_BAR_LIBRARY) },
-                onOpenScreens = { selectTopBarTab(GAME_HUB_TOP_BAR_SCREENS) },
-                onOpenConsoleModes = { selectTopBarTab(GAME_HUB_TOP_BAR_CONSOLE_MODES) },
-                onOpenSettings = { selectTopBarTab(GAME_HUB_TOP_BAR_SETTINGS) },
-            )
-            Box(
+            val viewport = remember(maxWidth, maxHeight) { GameHubViewport(maxWidth, maxHeight) }
+            val gridLayout =
+                remember(maxWidth, maxHeight, launcherItems.size, libraryGridEntries.size, availableProfiles.size, homePanel) {
+                    val count =
+                        when (homePanel) {
+                            GameHubHomePanel.Library -> libraryGridEntries.size.coerceAtLeast(1)
+                            GameHubHomePanel.Screens -> gameHubScreensItemCount(uiState.receivers.size)
+                            GameHubHomePanel.ConsoleModes -> gameHubConsoleModesItemCount(availableProfiles.size)
+                            GameHubHomePanel.Settings -> 1
+                            GameHubHomePanel.Launcher -> launcherItems.size.coerceAtLeast(1)
+                        }
+                    GameHubViewport.launcherGridLayout(maxWidth, maxHeight, count)
+                }
+            Column(
                 modifier =
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            ) {
-                AnimatedContent(
-                    targetState = homePanel,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(900, easing = FastOutSlowInEasing)) togetherWith
-                            fadeOut(animationSpec = tween(650, easing = FastOutSlowInEasing))
-                    },
-                    label = "gamehub-panel",
-                    modifier = Modifier.fillMaxSize(),
-                ) { activePanel ->
-                    when (activePanel) {
-                        GameHubHomePanel.Library ->
-                            GameHubLibraryStage(
-                                uiState = uiState,
-                                accent = accent,
-                                reducedMotion = reducedMotion,
-                                filter = libraryFilter,
-                                filterFocusIndex = libraryFilterIndex,
-                                filtersFocused = focusZone == GameHubFocusZone.LibraryFilters,
-                                gridInputActive = focusZone == GameHubFocusZone.Grid,
-                                focusedIndex = focusedIndex,
-                                onFilterChange = { libraryFilter = it },
-                                onFocusedIndexChange = { focusedIndex = it },
-                                onRefresh = { viewModel.refreshLibrary(clearIconCache = true) },
-                                onQueryChange = viewModel::updateLibraryQuery,
-                                onToggleFavourite = viewModel::toggleFavourite,
-                                onAddApp = viewModel::addLibraryApp,
-                                onLaunchApp = viewModel::launchOnly,
-                            )
-
-                        GameHubHomePanel.Screens ->
-                            GameHubScreensStage(
-                                uiState = uiState,
-                                viewModel = viewModel,
-                                focusedIndex = focusedIndex,
-                                listInputActive = focusZone == GameHubFocusZone.ScreensList,
-                                reducedMotion = reducedMotion,
-                                onSearchAgain = viewModel::startDiscovery,
-                            )
-
-                        GameHubHomePanel.ConsoleModes ->
-                            GameHubConsoleModesStage(
-                                uiState = uiState,
-                                viewModel = viewModel,
-                                availableProfiles = availableProfiles,
-                                focusedIndex = focusedIndex,
-                                listInputActive = focusZone == GameHubFocusZone.ConsoleModesList,
-                                reducedMotion = reducedMotion,
-                            )
-
-                        GameHubHomePanel.Settings ->
-                            GameHubSettingsStage(
-                                uiState = uiState,
-                                viewModel = viewModel,
-                                focusedIndex = focusedIndex,
-                                listInputActive = focusZone == GameHubFocusZone.SettingsPanel,
-                                reducedMotion = reducedMotion,
-                                onOpenDiagnostics = onOpenDiagnostics,
-                            )
-
-                        GameHubHomePanel.Launcher ->
-                            when (mode) {
-                                GameHubHomeMode.Portal ->
-                                    GameHubPortalStage(
-                                        portal = portal,
-                                        viewport = viewport,
-                                        accent = accent,
-                                        reducedMotion = reducedMotion,
-                                        portalFocus = portalFocus,
-                                        onPrimary = {
-                                            if (portal.primaryEnabled) onPrimaryPortal()
-                                        },
-                                    )
-
-                                GameHubHomeMode.Launcher ->
-                                    GameHubLauncherStage(
-                                        items = launcherItems,
-                                        libraryApps = uiState.libraryApps,
-                                        accent = accent,
-                                        reducedMotion = reducedMotion,
-                                        focusedIndex = focusedIndex,
-                                        gridInputActive = focusZone == GameHubFocusZone.Grid,
-                                        onTileActivate = onTileActivate,
-                                        onTileLongPress = { tileMenu = GameHubTileMenu.Overflow(it) },
-                                    )
+                    .fillMaxSize()
+                    .padding(horizontal = viewport.edgePaddingH, vertical = viewport.edgePaddingV)
+                    .focusRequester(homeInputFocus)
+                    .focusable(focusZone != GameHubFocusZone.TopBar)
+                    .onPreviewKeyEvent { event ->
+                        if (event.gameHubIsBackDown()) {
+                            if (showAzaharModePicker || tileMenu != null) {
+                                dismissOverlayMenus()
+                                return@onPreviewKeyEvent true
                             }
+                            if (isAtHomeAnchor()) {
+                                return@onPreviewKeyEvent false
+                            }
+                            navigateBackToHomeAnchor()
+                            return@onPreviewKeyEvent true
+                        } else if (event.type != KeyEventType.KeyDown) {
+                            return@onPreviewKeyEvent false
+                        } else if (showAzaharModePicker || tileMenu != null) {
+                            return@onPreviewKeyEvent false
+                        } else {
+                            val launcherGridActive =
+                                mode == GameHubHomeMode.Launcher &&
+                                    homePanel == GameHubHomePanel.Launcher &&
+                                    launcherItems.isNotEmpty()
+                            val libraryGridActive = homePanel == GameHubHomePanel.Library
+                            val screensListActive =
+                                homePanel == GameHubHomePanel.Screens &&
+                                    focusZone == GameHubFocusZone.ScreensList
+                            val consoleModesListActive =
+                                homePanel == GameHubHomePanel.ConsoleModes &&
+                                    focusZone == GameHubFocusZone.ConsoleModesList
+                            val settingsPanelActive =
+                                homePanel == GameHubHomePanel.Settings &&
+                                    focusZone == GameHubFocusZone.SettingsPanel
+                            val screensCount = gameHubScreensItemCount(uiState.receivers.size)
+                            val consoleModesCount = gameHubConsoleModesItemCount(availableProfiles.size)
+                            val gridCount =
+                                when {
+                                    libraryGridActive -> libraryGridEntries.size
+                                    screensListActive -> screensCount
+                                    consoleModesListActive -> consoleModesCount
+                                    settingsPanelActive -> settingsFocusCount
+                                    else -> launcherItems.size
+                                }
+                            val gridHasTiles = gridCount > 0
+                            when {
+                                event.gameHubIsAcceptDown() -> {
+                                    when (focusZone) {
+                                        GameHubFocusZone.LibraryFilters -> {
+                                            libraryFilter = GameHubLibraryFilter.entries[libraryFilterIndex]
+                                            focusedIndex = 0
+                                            if (libraryGridEntries.isNotEmpty()) activateLauncherGrid()
+                                            true
+                                        }
+
+                                        GameHubFocusZone.ScreensList -> {
+                                            if (uiState.receivers.isEmpty()) {
+                                                viewModel.startDiscovery()
+                                            } else {
+                                                uiState.receivers.getOrNull(focusedIndex)?.let(viewModel::connect)
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.ConsoleModesList -> {
+                                            gameHubConsoleModesFocusKind(focusedIndex, availableProfiles.size)?.let { kind ->
+                                                gameHubConsoleModesPerformAccept(
+                                                    kind = kind,
+                                                    uiState = uiState,
+                                                    viewModel = viewModel,
+                                                    availableProfiles = availableProfiles,
+                                                )
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.Grid -> {
+                                            if (launcherGridActive) {
+                                                launcherItems.getOrNull(focusedIndex)?.let(onTileActivate)
+                                            } else if (libraryGridActive) {
+                                                when (val entry = libraryGridEntries.getOrNull(focusedIndex)) {
+                                                    is GameHubLibraryGridEntry.App ->
+                                                        viewModel.launchOnly(entry.item.model)
+
+                                                    is GameHubLibraryGridEntry.AddCandidate ->
+                                                        viewModel.addLibraryApp(entry.item.model)
+
+                                                    null -> Unit
+                                                }
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.Portal -> {
+                                            if (portal.primaryEnabled) onPrimaryPortal()
+                                            true
+                                        }
+
+                                        GameHubFocusZone.SettingsPanel -> {
+                                            gameHubSettingsFocusItemAt(settingsRows, focusedIndex)?.let { item ->
+                                                gameHubSettingsPerformAccept(
+                                                    item = item,
+                                                    context = context,
+                                                    overlayAllowed = settingsOverlayAllowed,
+                                                    onScreenCloakModeSelected = onScreenCloakModeSelected,
+                                                )
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.TopBar -> false
+                                    }
+                                }
+
+                                event.key == Key.DirectionDown -> {
+                                    when (focusZone) {
+                                        GameHubFocusZone.TopBar ->
+                                            when {
+                                                homePanel == GameHubHomePanel.Launcher -> {
+                                                    when (mode) {
+                                                        GameHubHomeMode.Portal -> {
+                                                            focusZone = GameHubFocusZone.Portal
+                                                            portalFocus.requestFocus()
+                                                            true
+                                                        }
+
+                                                        GameHubHomeMode.Launcher ->
+                                                            if (gridHasTiles) {
+                                                                focusedIndex = 0
+                                                                activateLauncherGrid()
+                                                                true
+                                                            } else {
+                                                                false
+                                                            }
+                                                    }
+                                                }
+
+                                                homePanel == GameHubHomePanel.Library -> {
+                                                    activateLibraryFilters()
+                                                    true
+                                                }
+
+                                                homePanel == GameHubHomePanel.Screens -> {
+                                                    focusedIndex = 0
+                                                    activateScreensList()
+                                                    true
+                                                }
+
+                                                homePanel == GameHubHomePanel.ConsoleModes -> {
+                                                    focusedIndex =
+                                                        gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
+                                                    activateConsoleModesList()
+                                                    true
+                                                }
+
+                                                homePanel == GameHubHomePanel.Settings -> {
+                                                    activateSettingsPanel()
+                                                    true
+                                                }
+
+                                                else -> false
+                                            }
+
+                                        GameHubFocusZone.LibraryFilters ->
+                                            if (libraryGridEntries.isNotEmpty()) {
+                                                focusedIndex = 0
+                                                activateLauncherGrid()
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        GameHubFocusZone.ScreensList ->
+                                            if (gridHasTiles) {
+                                                focusedIndex = gameHubScreensMoveDown(focusedIndex, gridCount)
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        GameHubFocusZone.ConsoleModesList ->
+                                            if (gridHasTiles) {
+                                                focusedIndex = gameHubConsoleModesMoveDown(focusedIndex, gridCount)
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        GameHubFocusZone.SettingsPanel ->
+                                            if (gridHasTiles) {
+                                                focusedIndex = gameHubSettingsMoveDown(focusedIndex, gridCount)
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        GameHubFocusZone.Grid ->
+                                            if (gridHasTiles) {
+                                                focusedIndex =
+                                                    when {
+                                                        screensListActive ->
+                                                            gameHubScreensMoveDown(focusedIndex, gridCount)
+
+                                                        consoleModesListActive ->
+                                                            gameHubConsoleModesMoveDown(focusedIndex, gridCount)
+
+                                                        settingsPanelActive ->
+                                                            gameHubSettingsMoveDown(focusedIndex, gridCount)
+
+                                                        else ->
+                                                            gameHubGridMoveDown(focusedIndex, gridLayout.columns, gridCount)
+                                                    }
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        GameHubFocusZone.Portal -> false
+                                    }
+                                }
+
+                                event.key == Key.DirectionUp -> {
+                                    when (focusZone) {
+                                        GameHubFocusZone.Grid,
+                                        GameHubFocusZone.ScreensList,
+                                        GameHubFocusZone.ConsoleModesList,
+                                        GameHubFocusZone.SettingsPanel,
+                                        ->
+                                            if (screensListActive) {
+                                                if (focusedIndex == 0) {
+                                                    focusTopBarButton(GAME_HUB_TOP_BAR_SCREENS)
+                                                    true
+                                                } else {
+                                                    focusedIndex = gameHubScreensMoveUp(focusedIndex, gridCount)
+                                                    true
+                                                }
+                                            } else if (consoleModesListActive) {
+                                                val consoleModesTopIndex =
+                                                    gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
+                                                if (focusedIndex <= consoleModesTopIndex) {
+                                                    focusTopBarButton(GAME_HUB_TOP_BAR_CONSOLE_MODES)
+                                                    true
+                                                } else {
+                                                    focusedIndex = gameHubConsoleModesMoveUp(focusedIndex, gridCount)
+                                                    true
+                                                }
+                                            } else if (settingsPanelActive) {
+                                                if (focusedIndex == 0) {
+                                                    focusTopBarButton(GAME_HUB_TOP_BAR_SETTINGS)
+                                                    true
+                                                } else {
+                                                    focusedIndex = gameHubSettingsMoveUp(focusedIndex, gridCount)
+                                                    true
+                                                }
+                                            } else if (focusedIndex / gridLayout.columns == 0) {
+                                                when (homePanel) {
+                                                    GameHubHomePanel.Library -> activateLibraryFilters()
+                                                    else -> focusTopBarButton(gameHubTopBarIndexForPanel(homePanel))
+                                                }
+                                                true
+                                            } else if (gridHasTiles) {
+                                                focusedIndex =
+                                                    gameHubGridMoveUp(focusedIndex, gridLayout.columns, gridCount)
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        GameHubFocusZone.LibraryFilters -> {
+                                            focusTopBarButton(GAME_HUB_TOP_BAR_LIBRARY)
+                                            true
+                                        }
+
+                                        GameHubFocusZone.Portal -> {
+                                            focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
+                                            true
+                                        }
+
+                                        GameHubFocusZone.TopBar -> false
+                                    }
+                                }
+
+                                event.key == Key.DirectionRight -> {
+                                    when (focusZone) {
+                                        GameHubFocusZone.TopBar -> {
+                                            focusTopBarButton((topBarIndex + 1).coerceAtMost(GAME_HUB_TOP_BAR_LAST_INDEX))
+                                            true
+                                        }
+
+                                        GameHubFocusZone.ConsoleModesList -> {
+                                            gameHubConsoleModesFocusKind(focusedIndex, availableProfiles.size)?.let { kind ->
+                                                gameHubConsoleModesPerformHorizontal(
+                                                    kind = kind,
+                                                    forward = true,
+                                                    uiState = uiState,
+                                                    viewModel = viewModel,
+                                                )
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.ScreensList -> false
+
+                                        GameHubFocusZone.SettingsPanel -> {
+                                            gameHubSettingsFocusItemAt(settingsRows, focusedIndex)?.let { item ->
+                                                gameHubSettingsPerformHorizontal(
+                                                    item = item,
+                                                    forward = true,
+                                                    context = context,
+                                                    onScreenCloakModeSelected = onScreenCloakModeSelected,
+                                                )
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.LibraryFilters -> {
+                                            val next =
+                                                (libraryFilterIndex + 1)
+                                                    .coerceAtMost(GameHubLibraryFilter.entries.lastIndex)
+                                            libraryFilterIndex = next
+                                            libraryFilter = GameHubLibraryFilter.entries[next]
+                                            focusedIndex = 0
+                                            true
+                                        }
+
+                                        GameHubFocusZone.Grid ->
+                                            if (gridHasTiles && !screensListActive && !consoleModesListActive && !settingsPanelActive) {
+                                                focusedIndex =
+                                                    gameHubGridMoveRight(focusedIndex, gridLayout.columns, gridCount)
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        else -> false
+                                    }
+                                }
+
+                                event.key == Key.DirectionLeft -> {
+                                    when (focusZone) {
+                                        GameHubFocusZone.TopBar -> {
+                                            focusTopBarButton((topBarIndex - 1).coerceAtLeast(0))
+                                            true
+                                        }
+
+                                        GameHubFocusZone.ConsoleModesList -> {
+                                            gameHubConsoleModesFocusKind(focusedIndex, availableProfiles.size)?.let { kind ->
+                                                gameHubConsoleModesPerformHorizontal(
+                                                    kind = kind,
+                                                    forward = false,
+                                                    uiState = uiState,
+                                                    viewModel = viewModel,
+                                                )
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.ScreensList -> false
+
+                                        GameHubFocusZone.SettingsPanel -> {
+                                            gameHubSettingsFocusItemAt(settingsRows, focusedIndex)?.let { item ->
+                                                gameHubSettingsPerformHorizontal(
+                                                    item = item,
+                                                    forward = false,
+                                                    context = context,
+                                                    onScreenCloakModeSelected = onScreenCloakModeSelected,
+                                                )
+                                            }
+                                            true
+                                        }
+
+                                        GameHubFocusZone.LibraryFilters -> {
+                                            val next = (libraryFilterIndex - 1).coerceAtLeast(0)
+                                            libraryFilterIndex = next
+                                            libraryFilter = GameHubLibraryFilter.entries[next]
+                                            focusedIndex = 0
+                                            true
+                                        }
+
+                                        GameHubFocusZone.Grid ->
+                                            if (gridHasTiles && !screensListActive && !consoleModesListActive && !settingsPanelActive) {
+                                                focusedIndex =
+                                                    gameHubGridMoveLeft(focusedIndex, gridLayout.columns, gridCount)
+                                                true
+                                            } else {
+                                                false
+                                            }
+
+                                        else -> false
+                                    }
+                                }
+
+                                else -> false
+                            }
+                        }
+                    },
+                verticalArrangement = Arrangement.spacedBy(viewport.sectionGap),
+            ) {
+                GameHubTopBar(
+                    uiState = uiState,
+                    mode = mode,
+                    portalStatus = portal.statusPill,
+                    homeFocus = homeFocus,
+                    libraryFocus = libraryFocus,
+                    screensFocus = screensFocus,
+                    consoleModesFocus = consoleModesFocus,
+                    settingsFocus = settingsFocus,
+                    iconButtonSize = viewport.settingsCogSize,
+                    reducedMotion = reducedMotion,
+                    topBarIndex = topBarIndex,
+                    focusZone = focusZone,
+                    homePanel = homePanel,
+                    onHomeFocusChanged = {
+                        homeBarFocused = it
+                        if (it) {
+                            focusZone = GameHubFocusZone.TopBar
+                            topBarIndex = GAME_HUB_TOP_BAR_HOME
+                        }
+                    },
+                    onLibraryFocusChanged = {
+                        libraryBarFocused = it
+                        if (it) {
+                            focusZone = GameHubFocusZone.TopBar
+                            topBarIndex = GAME_HUB_TOP_BAR_LIBRARY
+                        }
+                    },
+                    onScreensFocusChanged = {
+                        screensBarFocused = it
+                        if (it) {
+                            focusZone = GameHubFocusZone.TopBar
+                            topBarIndex = GAME_HUB_TOP_BAR_SCREENS
+                        }
+                    },
+                    onConsoleModesFocusChanged = {
+                        consoleModesBarFocused = it
+                        if (it) {
+                            focusZone = GameHubFocusZone.TopBar
+                            topBarIndex = GAME_HUB_TOP_BAR_CONSOLE_MODES
+                        }
+                    },
+                    onSettingsFocusChanged = {
+                        settingsBarFocused = it
+                        if (it) {
+                            focusZone = GameHubFocusZone.TopBar
+                            topBarIndex = GAME_HUB_TOP_BAR_SETTINGS
+                        }
+                    },
+                    onGoHome = { selectTopBarTab(GAME_HUB_TOP_BAR_HOME) },
+                    onOpenLibrary = { selectTopBarTab(GAME_HUB_TOP_BAR_LIBRARY) },
+                    onOpenScreens = { selectTopBarTab(GAME_HUB_TOP_BAR_SCREENS) },
+                    onOpenConsoleModes = { selectTopBarTab(GAME_HUB_TOP_BAR_CONSOLE_MODES) },
+                    onOpenSettings = { selectTopBarTab(GAME_HUB_TOP_BAR_SETTINGS) },
+                )
+                Box(
+                    modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    AnimatedContent(
+                        targetState = homePanel,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(900, easing = FastOutSlowInEasing)) togetherWith
+                                fadeOut(animationSpec = tween(650, easing = FastOutSlowInEasing))
+                        },
+                        label = "gamehub-panel",
+                        modifier = Modifier.fillMaxSize(),
+                    ) { activePanel ->
+                        when (activePanel) {
+                            GameHubHomePanel.Library ->
+                                GameHubLibraryStage(
+                                    uiState = uiState,
+                                    accent = accent,
+                                    reducedMotion = reducedMotion,
+                                    filter = libraryFilter,
+                                    filterFocusIndex = libraryFilterIndex,
+                                    filtersFocused = focusZone == GameHubFocusZone.LibraryFilters,
+                                    gridInputActive = focusZone == GameHubFocusZone.Grid,
+                                    focusedIndex = focusedIndex,
+                                    onFilterChange = { libraryFilter = it },
+                                    onFocusedIndexChange = { focusedIndex = it },
+                                    onRefresh = { viewModel.refreshLibrary(clearIconCache = true) },
+                                    onQueryChange = viewModel::updateLibraryQuery,
+                                    onToggleFavourite = viewModel::toggleFavourite,
+                                    onAddApp = viewModel::addLibraryApp,
+                                    onLaunchApp = viewModel::launchOnly,
+                                )
+
+                            GameHubHomePanel.Screens ->
+                                GameHubScreensStage(
+                                    uiState = uiState,
+                                    viewModel = viewModel,
+                                    focusedIndex = focusedIndex,
+                                    listInputActive = focusZone == GameHubFocusZone.ScreensList,
+                                    reducedMotion = reducedMotion,
+                                    onSearchAgain = viewModel::startDiscovery,
+                                )
+
+                            GameHubHomePanel.ConsoleModes ->
+                                GameHubConsoleModesStage(
+                                    uiState = uiState,
+                                    viewModel = viewModel,
+                                    availableProfiles = availableProfiles,
+                                    focusedIndex = focusedIndex,
+                                    listInputActive = focusZone == GameHubFocusZone.ConsoleModesList,
+                                    reducedMotion = reducedMotion,
+                                )
+
+                            GameHubHomePanel.Settings ->
+                                GameHubSettingsStage(
+                                    uiState = uiState,
+                                    viewModel = viewModel,
+                                    focusedIndex = focusedIndex,
+                                    listInputActive = focusZone == GameHubFocusZone.SettingsPanel,
+                                    reducedMotion = reducedMotion,
+                                    onOpenDiagnostics = onOpenDiagnostics,
+                                )
+
+                            GameHubHomePanel.Launcher ->
+                                when (mode) {
+                                    GameHubHomeMode.Portal ->
+                                        GameHubPortalStage(
+                                            portal = portal,
+                                            viewport = viewport,
+                                            accent = accent,
+                                            reducedMotion = reducedMotion,
+                                            portalFocus = portalFocus,
+                                            onPrimary = {
+                                                if (portal.primaryEnabled) onPrimaryPortal()
+                                            },
+                                        )
+
+                                    GameHubHomeMode.Launcher ->
+                                        GameHubLauncherStage(
+                                            items = launcherItems,
+                                            libraryApps = uiState.libraryApps,
+                                            accent = accent,
+                                            reducedMotion = reducedMotion,
+                                            focusedIndex = focusedIndex,
+                                            gridInputActive = focusZone == GameHubFocusZone.Grid,
+                                            onTileActivate = onTileActivate,
+                                            onTileLongPress = { tileMenu = GameHubTileMenu.Overflow(it) },
+                                        )
+                                }
+                        }
                     }
                 }
+                GameHubPrivacyFooter()
             }
-            GameHubPrivacyFooter()
-        }
-        when (val menu = tileMenu) {
-            is GameHubTileMenu.Overflow -> {
-                val packageName = gameHubPackageName(menu.item, uiState)
-                val libraryApp = packageName?.let(viewModel::libraryAppForPackage)
-                GameHubTileOverflowMenu(
-                    item = menu.item,
-                    showFavourite = libraryApp != null && !menu.item.isAzahar,
-                    isFavourite = libraryApp?.isFavourite == true,
+            when (val menu = tileMenu) {
+                is GameHubTileMenu.Overflow -> {
+                    val packageName = gameHubPackageName(menu.item, uiState)
+                    val libraryApp = packageName?.let(viewModel::libraryAppForPackage)
+                    GameHubTileOverflowMenu(
+                        item = menu.item,
+                        showFavourite = libraryApp != null && !menu.item.isAzahar,
+                        isFavourite = libraryApp?.isFavourite == true,
+                        accent = accent,
+                        reducedMotion = reducedMotion,
+                        onDismiss = { tileMenu = null },
+                        onFavourite = {
+                            libraryApp?.let(viewModel::toggleFavourite)
+                            tileMenu = null
+                        },
+                        onConsoleMode = { tileMenu = GameHubTileMenu.ProfilePicker(menu.item) },
+                    )
+                }
+
+                is GameHubTileMenu.ProfilePicker -> {
+                    val packageName = gameHubPackageName(menu.item, uiState)
+                    GameHubAppProfilePickerSheet(
+                        item = menu.item,
+                        globalProfile = uiState.performanceSettings.selectedProfile,
+                        selectedOverrideId = menu.item.profileOverrideId,
+                        availableProfiles = availableProfiles,
+                        accent = accent,
+                        reducedMotion = reducedMotion,
+                        onDismiss = { tileMenu = null },
+                        onBack = { tileMenu = GameHubTileMenu.Overflow(menu.item) },
+                        onSelectProfile = { profileId ->
+                            packageName?.let { viewModel.setAppProfileOverride(it, profileId) }
+                            tileMenu = null
+                        },
+                    )
+                }
+
+                null -> Unit
+            }
+            if (showAzaharModePicker) {
+                GameHubAzaharModeDialog(
                     accent = accent,
                     reducedMotion = reducedMotion,
-                    onDismiss = { tileMenu = null },
-                    onFavourite = {
-                        libraryApp?.let(viewModel::toggleFavourite)
-                        tileMenu = null
+                    onDismiss = { showAzaharModePicker = false },
+                    onNormal = {
+                        showAzaharModePicker = false
+                        if (viewModel.launchAzahar()) {
+                            requestConsoleMode()
+                        }
                     },
-                    onConsoleMode = { tileMenu = GameHubTileMenu.ProfilePicker(menu.item) },
-                )
-            }
-
-            is GameHubTileMenu.ProfilePicker -> {
-                val packageName = gameHubPackageName(menu.item, uiState)
-                GameHubAppProfilePickerSheet(
-                    item = menu.item,
-                    globalProfile = uiState.performanceSettings.selectedProfile,
-                    selectedOverrideId = menu.item.profileOverrideId,
-                    availableProfiles = availableProfiles,
-                    accent = accent,
-                    reducedMotion = reducedMotion,
-                    onDismiss = { tileMenu = null },
-                    onBack = { tileMenu = GameHubTileMenu.Overflow(menu.item) },
-                    onSelectProfile = { profileId ->
-                        packageName?.let { viewModel.setAppProfileOverride(it, profileId) }
-                        tileMenu = null
+                    onThreeDs = {
+                        showAzaharModePicker = false
+                        viewModel.launchAzahar3dsMode()
                     },
                 )
             }
-
-            null -> Unit
         }
-        if (showAzaharModePicker) {
-            GameHubAzaharModeDialog(
-                accent = accent,
-                reducedMotion = reducedMotion,
-                onDismiss = { showAzaharModePicker = false },
-                onNormal = {
-                    showAzaharModePicker = false
-                    if (viewModel.launchAzahar()) {
-                        requestConsoleMode()
-                    }
-                },
-                onThreeDs = {
-                    showAzaharModePicker = false
-                    viewModel.launchAzahar3dsMode()
-                },
-            )
-        }
-    }
     }
 }
 
@@ -1857,11 +1857,7 @@ private fun GameHubTopBar(
 }
 
 @Composable
-private fun GameHubReceiverPill(
-    text: String,
-    accent: Color,
-    modifier: Modifier = Modifier,
-) {
+private fun GameHubReceiverPill(text: String, accent: Color, modifier: Modifier = Modifier) {
     val gradientPhase = LocalGameHubGradientPhase.current
     val shape = RoundedCornerShape(50)
     val fillColors =
@@ -2738,13 +2734,7 @@ internal fun Modifier.gameHubFocusRing(
     }
 }
 
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGameHubGradientRing(
-    shape: Shape,
-    brush: Brush,
-    strokeWidth: Float,
-    cornerRadius: Dp,
-    outside: Boolean = false,
-) {
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGameHubGradientRing(shape: Shape, brush: Brush, strokeWidth: Float, cornerRadius: Dp, outside: Boolean = false) {
     val inset = if (outside) -strokeWidth / 2f else strokeWidth / 2f
     if (shape === CircleShape) {
         drawCircle(

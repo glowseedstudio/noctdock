@@ -54,14 +54,14 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.center
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -1371,14 +1371,7 @@ private fun InlineHeroChip(label: String, accent: Color, compact: Boolean = fals
 }
 
 @Composable
-private fun NoctAccentButtonChrome(
-    accent: Color,
-    shape: RoundedCornerShape,
-    glowIntensity: NoctAccentGlowIntensity?,
-    fillBrush: Brush,
-    borderBrush: Brush,
-    modifier: Modifier = Modifier,
-) {
+private fun NoctAccentButtonChrome(accent: Color, shape: RoundedCornerShape, glowIntensity: NoctAccentGlowIntensity?, fillBrush: Brush, borderBrush: Brush, modifier: Modifier = Modifier) {
     Box(
         modifier =
         modifier
@@ -1400,62 +1393,59 @@ private enum class NoctAccentGlowIntensity {
     Strong,
 }
 
-private fun noctPrimaryButtonFillBrush(accent: Color): Brush =
-    Brush.linearGradient(
-        listOf(
-            accent,
-            lerp(accent, Color.White, 0.28f),
-            lerp(accent, NoctColors.Violet, 0.18f),
-            accent.copy(alpha = 0.94f),
-        ),
-    )
+private fun noctPrimaryButtonFillBrush(accent: Color): Brush = Brush.linearGradient(
+    listOf(
+        accent,
+        lerp(accent, Color.White, 0.28f),
+        lerp(accent, NoctColors.Violet, 0.18f),
+        accent.copy(alpha = 0.94f),
+    ),
+)
 
-private fun noctPrimaryButtonBorderBrush(accent: Color): Brush =
-    Brush.linearGradient(
-        listOf(
-            Color.White.copy(alpha = 0.62f),
-            accent.copy(alpha = 0.98f),
-            lerp(accent, NoctColors.Magenta, 0.35f).copy(alpha = 0.92f),
-        ),
-    )
+private fun noctPrimaryButtonBorderBrush(accent: Color): Brush = Brush.linearGradient(
+    listOf(
+        Color.White.copy(alpha = 0.62f),
+        accent.copy(alpha = 0.98f),
+        lerp(accent, NoctColors.Magenta, 0.35f).copy(alpha = 0.92f),
+    ),
+)
 
-private fun Modifier.noctAccentButtonGlow(accent: Color, shape: RoundedCornerShape, intensity: NoctAccentGlowIntensity): Modifier =
-    drawWithCache {
-        val extra =
-            when (intensity) {
-                NoctAccentGlowIntensity.Standard -> 5.dp.toPx()
-                NoctAccentGlowIntensity.Strong -> 7.dp.toPx()
-            }
-        val peakAlpha =
-            when (intensity) {
-                NoctAccentGlowIntensity.Standard -> 0.68f
-                NoctAccentGlowIntensity.Strong -> 0.84f
-            }
-        val glowSize = Size(size.width + extra * 2f, size.height + extra * 2f)
-        val pillRadius = glowSize.height / 2f
-        val center = Offset(size.width * 0.5f, size.height * 0.5f)
-        val glow =
-            Brush.radialGradient(
-                colors =
-                listOf(
-                    accent.copy(alpha = peakAlpha),
-                    accent.copy(alpha = peakAlpha * 0.48f),
-                    NoctColors.Magenta.copy(alpha = peakAlpha * 0.22f),
-                    Color.Transparent,
-                ),
-                center = center,
-                radius = kotlin.math.max(glowSize.width * 0.42f, glowSize.height * 0.88f),
+private fun Modifier.noctAccentButtonGlow(accent: Color, shape: RoundedCornerShape, intensity: NoctAccentGlowIntensity): Modifier = drawWithCache {
+    val extra =
+        when (intensity) {
+            NoctAccentGlowIntensity.Standard -> 5.dp.toPx()
+            NoctAccentGlowIntensity.Strong -> 7.dp.toPx()
+        }
+    val peakAlpha =
+        when (intensity) {
+            NoctAccentGlowIntensity.Standard -> 0.68f
+            NoctAccentGlowIntensity.Strong -> 0.84f
+        }
+    val glowSize = Size(size.width + extra * 2f, size.height + extra * 2f)
+    val pillRadius = glowSize.height / 2f
+    val center = Offset(size.width * 0.5f, size.height * 0.5f)
+    val glow =
+        Brush.radialGradient(
+            colors =
+            listOf(
+                accent.copy(alpha = peakAlpha),
+                accent.copy(alpha = peakAlpha * 0.48f),
+                NoctColors.Magenta.copy(alpha = peakAlpha * 0.22f),
+                Color.Transparent,
+            ),
+            center = center,
+            radius = kotlin.math.max(glowSize.width * 0.42f, glowSize.height * 0.88f),
+        )
+    onDrawBehind {
+        translate(-extra, -extra) {
+            drawRoundRect(
+                brush = glow,
+                size = glowSize,
+                cornerRadius = CornerRadius(pillRadius, pillRadius),
             )
-        onDrawBehind {
-            translate(-extra, -extra) {
-                drawRoundRect(
-                    brush = glow,
-                    size = glowSize,
-                    cornerRadius = CornerRadius(pillRadius, pillRadius),
-                )
-            }
         }
     }
+}
 
 @Composable
 fun Modifier.noctGradientBorder(shape: Shape = RoundedCornerShape(22.dp)): Modifier {
