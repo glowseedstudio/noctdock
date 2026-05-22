@@ -131,7 +131,7 @@ Higher is not always better. NoctDock is built to favour smooth play over chasin
 
 The sender runs on the handheld. It handles receiver discovery, pairing, trusted screens, Console Mode, the app and game launcher, stream profiles, audio modes, Screen Cloak, the 60 Hz helper, connection testing, and system diagnostics.
 
-The Home screen is being shaped around a console-style launcher rather than a technical dashboard. The goal is for it to feel natural on handheld controls, with D-pad navigation, big focused cards, favourites, and a clear “play on screen” flow.
+The Home screen is designed around a console-style launcher rather than a technical dashboard. The goal is for it to feel natural on handheld controls, with D-pad navigation, big focused cards, favourites, and a clear “play on screen” flow.
 
 ---
 
@@ -186,6 +186,14 @@ Local-first and community-friendly: no accounts, no cloud dependency, no ads, no
 ## Roadmap
 
 Ongoing areas include more receiver testing, a stronger Android handheld support matrix, improved Game Hub launcher polish, better profile recommendations from real network tests, continued NoctDock Azahar optimisation, Linux receiver exploration, and more device-specific tuning for Retroid, AYN, AYANEO, Anbernic, Shield, and others.
+
+---
+
+## Known limitations
+
+NoctDock is still early. Performance depends heavily on the handheld, receiver, Wi-Fi/router quality, codec support, and whether the receiver is using Wi-Fi or Ethernet.
+
+For best results, start with Balanced or Quality before trying Sharp/Cinema. 1080p modes need a strong local network and a capable receiver.
 
 ---
 
