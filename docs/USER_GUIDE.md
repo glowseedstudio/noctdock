@@ -150,12 +150,22 @@ Open from the **Library** tab. Everything comes from **apps installed on your se
 
 ## NoctDock Azahar (3DS Mode)
 
-Separate emulator app — see the [Azahar repo](https://github.com/glowseedstudio/noctdock-azahar) for install.
+Separate emulator app — [install from Releases](https://github.com/glowseedstudio/noctdock-azahar/releases/latest). Full Azahar-specific setup: **[NoctDock Azahar user guide](https://github.com/glowseedstudio/noctdock-azahar/blob/main/docs/USER_GUIDE.md)**.
 
-- **Launch** — normal Console Mode (whole Android UI stream), then Azahar opens.
-- **Launch in 3DS Mode** — checks Azahar is installed, receiver is online and **trusted**, then sends top-screen export only (bottom screen and touch stay on handheld).
+### Prerequisites (both apps)
 
-Export quality (resolution/FPS) is set **inside Azahar**; codec follows sender negotiation. Optional **bottom-screen dim** while exporting is an Azahar-only setting.
+1. **Pair and trust the TV** in NoctDock Sender (**Screens**) before expecting export to work.
+2. In **Azahar → Settings → NoctDock 3DS Mode**, enable the feature and review **Export Settings** (defaults: **Balanced**, resolution **Auto**, **30 fps safe**).
+3. In **Azahar → Graphics**, set **Internal Resolution** (how sharp the 3DS renders) — this is separate from export size. A good start is **2× Native** on most handhelds, **1× Native** on weaker devices.
+4. **OpenGL** renderer is the stable path; **Vulkan** is experimental for export.
+
+### Launch paths
+
+- **Launch** (Sender) — Console Mode mirrors the **whole Android UI**; does not start top-screen-only export by itself.
+- **Launch in 3DS Mode** (Sender) — receiver must be **trusted** and online; Azahar exports **top screen only** (codec negotiated by Sender).
+- **Inside Azahar** — with **Ask each time**, confirm **Send to Screen** when a game starts.
+
+Export performance, resolution, FPS, bottom-screen dim, and Stream Watch are all configured **inside Azahar** (not in Sender Console Modes).
 
 ---
 
