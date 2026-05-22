@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="NoctDock — a local wireless dock for Android gaming handhelds. Pair once, play on the TV, keep the handheld as your controller.">
+  <meta name="theme-color" content="#000000">
+  <title>NoctDock — Local wireless dock for Android handhelds</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true">
+    <span class="g1"></span>
+    <span class="g2"></span>
+    <span class="g3"></span>
+  </div>
+
+  <header class="hero wrap">
+    <div class="icon-ring">
+      <div class="icon-ring-inner">
+        <img src="assets/icon.svg" width="108" height="108" alt="NoctDock Sender app icon">
+      </div>
+    </div>
+    <h1>NoctDock</h1>
+    <p class="tagline">A local wireless dock for Android gaming handhelds</p>
+    <p class="lede">
+      NoctDock lets an Android handheld send its screen to another display on your local network,
+      while the handheld stays in your hands as the controller.
+    </p>
+    <p class="lede" style="margin-top: 0.75rem;">
+      Open the receiver on a TV, Shield, tablet, or phone. Open the sender on your handheld. Pair once. Play docked.
+    </p>
+    <p style="margin: 1.25rem 0 0; font-size: 0.95rem; color: var(--muted);">
+      No accounts · No cloud relay · No ads · No analytics
+    </p>
+    <p class="status-banner" style="margin-top: 1.5rem;">In active development — source and builds coming to GitHub</p>
+    <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--muted);">
+      <a href="https://github.com/glowseedstudio/noctdock">Repository on GitHub</a>
+    </p>
+  </header>
+
+  <main>
+    <section class="wrap" id="why">
+      <span class="section-label">Why I made this</span>
+      <h2>Handhelds that feel like consoles</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          I started NoctDock because I love Android gaming handhelds, but I kept running into the same problem:
+          these devices are powerful enough to feel like little consoles, yet they are still mostly treated like
+          small-screen-only devices.
+        </p>
+        <p>
+          I wanted something closer to a real docked-console experience — not Chromecast-style mirroring,
+          not remote desktop, not another cloud gaming service, and not something that needs a login or a server.
+          Just <strong>my handheld, my local network, my screen, my controller.</strong>
+        </p>
+        <blockquote>
+          What if a Retroid, Odin, or similar Android handheld could behave more like a wireless console?
+        </blockquote>
+        <p>
+          NoctDock is my attempt to build that properly and share it with the community. It is still in active
+          development, but the goal is simple: make Android handhelds feel more flexible, more console-like,
+          and more useful with the screens people already own.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="what">
+      <span class="section-label">What it does</span>
+      <h2>A few apps, one local experience</h2>
+      <ul class="parts-list">
+        <li><strong>NoctDock Sender</strong> — runs on the Android handheld.</li>
+        <li><strong>NoctDock Receiver</strong> — runs on the TV, Shield, Android TV, phone, tablet, or display.</li>
+        <li><strong>NoctDock Core</strong> — shared protocol, profiles, discovery, pairing, and diagnostics.</li>
+        <li><strong>NoctDock Azahar</strong> — separate Azahar fork for experimental 3DS top-screen projection.</li>
+      </ul>
+      <div class="prose" style="margin-top: 1.5rem;">
+        <p>
+          Start the receiver on your display. Start the sender on your handheld. Pair once. Pick what to play.
+          Enter Console Mode. Everything stays on your local network.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="not">
+      <span class="section-label">What it is not</span>
+      <h2>Local play, not cloud play</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          NoctDock is not a cloud gaming service. It does not use an online account, upload your games,
+          scrape a game database, collect analytics, or depend on a remote server. It is built around
+          local play, local discovery, and local control.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="features">
+      <span class="section-label">Main features</span>
+      <h2>What is in the box</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Feature</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong style="color: var(--text);">Local discovery</strong></td><td>Finds receivers on your LAN with mDNS.</td></tr>
+            <tr><td><strong style="color: var(--text);">Pair once</strong></td><td>Short pairing code, then trusted screens stored locally.</td></tr>
+            <tr><td><strong style="color: var(--text);">Console Mode</strong></td><td>Hardware-encoded stream from handheld to receiver.</td></tr>
+            <tr><td><strong style="color: var(--text);">Game Hub launcher</strong></td><td>Console-style home for apps, emulators, favourites, recents.</td></tr>
+            <tr><td><strong style="color: var(--text);">AVC / HEVC</strong></td><td>Best supported codec, with fallback when needed.</td></tr>
+            <tr><td><strong style="color: var(--text);">Console profiles</strong></td><td>Performance through Cinema, plus hidden test modes.</td></tr>
+            <tr><td><strong style="color: var(--text);">TV / receiver audio</strong></td><td>Optional sound modes when Android allows capture.</td></tr>
+            <tr><td><strong style="color: var(--text);">Screen Cloak</strong></td><td>Dim the handheld without dimming the stream on TV.</td></tr>
+            <tr><td><strong style="color: var(--text);">Test My Connection</strong></td><td>Probe the LAN and suggest a sensible profile.</td></tr>
+            <tr><td><strong style="color: var(--text);">System Status</strong></td><td>Real diagnostics; support reports stay redacted.</td></tr>
+            <tr><td><strong style="color: var(--text);">Android receiver</strong></td><td>Use another phone or tablet as the display.</td></tr>
+            <tr><td><strong style="color: var(--text);">NoctDock Azahar</strong></td><td>Experimental 3DS top-screen via a custom Azahar fork.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="wrap" id="profiles">
+      <span class="section-label">Console profiles</span>
+      <h2>Presets, not a wall of knobs</h2>
+      <div class="prose">
+        <p>
+          Higher is not always better. NoctDock favours smooth play over chasing numbers. If the connection
+          struggles, it should recommend a safer profile instead of silently making the picture ugly or unstable.
+        </p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Profile</th><th>Resolution</th><th>FPS</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong style="color: var(--text);">Performance</strong></td><td>1280×720</td><td>60</td><td>Lowest-latency fallback</td></tr>
+            <tr><td><strong style="color: var(--text);">Balanced</strong></td><td>1280×720</td><td>60</td><td>Recommended default</td></tr>
+            <tr><td><strong style="color: var(--text);">Quality</strong></td><td>1280×720</td><td>60</td><td>Cleaner 720p</td></tr>
+            <tr><td><strong style="color: var(--text);">Sharp</strong></td><td>1600×900</td><td>60</td><td>Strong local networks</td></tr>
+            <tr><td><strong style="color: var(--text);">Cinema</strong></td><td>1920×1080</td><td>60</td><td>Full HD when the path can handle it</td></tr>
+            <tr><td><strong style="color: var(--text);">1080 Boost</strong></td><td>1920×1080</td><td>60</td><td>Hidden compatibility test</td></tr>
+            <tr><td><strong style="color: var(--text);">Extreme</strong></td><td>1920×1080</td><td>60</td><td>Hidden experimental</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="wrap" id="sender">
+      <span class="section-label">Sender</span>
+      <h2>On the handheld</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          The sender handles discovery, pairing, trusted screens, Console Mode, the launcher, stream profiles,
+          audio modes, Screen Cloak, the 60 Hz helper, connection testing, and diagnostics.
+        </p>
+        <p>
+          Home is being shaped as a console-style launcher, not a technical dashboard — D-pad friendly,
+          big focused cards, favourites, and a clear play-on-screen flow.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="receiver">
+      <span class="section-label">Receiver</span>
+      <h2>On the big screen</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          Google TV, Android TV, Shield, phones, tablets, and other Android displays. The receiver waits for
+          a handheld, shows a pairing code when needed, then plays fullscreen with reconnect handling,
+          fit or fill scaling, audio, overlays, and System Status.
+        </p>
+        <p>For 1080p testing, Ethernet on the receiver is recommended when you can.</p>
+      </div>
+    </section>
+
+    <section class="wrap" id="azahar">
+      <span class="section-label">NoctDock Azahar</span>
+      <h2>3DS top screen on the TV</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          A separate Azahar fork for a more natural 3DS setup: top screen on the receiver, bottom screen and
+          touch on the handheld. Kept apart from the main apps so the emulator stays properly attributed and
+          easier for the community to work on. The current direction favours rendering into an encoder surface
+          rather than slow frame readback where possible.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="privacy">
+      <span class="section-label">Privacy</span>
+      <h2>Local network only</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          No accounts, analytics, ads, cloud relay, external game database, or telemetry uploads. Your library,
+          trusted screens, settings, and diagnostics stay on the device unless you choose to paste a support
+          report into a GitHub issue.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="status">
+      <span class="section-label">Current status</span>
+      <h2>Active development</h2>
+      <div class="prose" style="max-width: none;">
+        <p>
+          Sender, receiver, and core modules; discovery and pairing; AVC and HEVC streaming; reconnect hardening;
+          connection testing; Game Hub work; Screen Cloak; 60 Hz helper; TV and phone receivers; Azahar integration.
+          Source and release builds will land on GitHub as the project stabilises.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="opensource">
+      <span class="section-label">Open source</span>
+      <h2>Built for the community</h2>
+      <div class="glass-card prose" style="max-width: none;">
+        <p>
+          This started as something I wanted on my own handheld. If it helps other Android handheld users,
+          or inspires better local-play tools, sharing it is the right move. It is not here to replace your
+          emulators or launchers — it sits beside them.
+        </p>
+        <p>
+          Testing, device reports, documentation, codec work, and Azahar export help are all welcome on
+          <a href="https://github.com/glowseedstudio/noctdock">GitHub</a>.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap" id="roadmap">
+      <span class="section-label">Roadmap</span>
+      <h2>What is next</h2>
+      <div class="prose" style="max-width: none;">
+        <p>
+          More receiver and handheld testing, a clearer device support matrix, Game Hub polish, profile
+          recommendations from real network tests, Azahar optimisation, Linux receiver exploration, and
+          tuning for Retroid, AYN, AYANEO, Anbernic, Shield, and others.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p><span class="brand">NoctDock</span> · <a href="https://glowseedstudio.github.io/">Glowseed Studio</a></p>
+    <p style="margin-top: 0.5rem;"><a href="https://github.com/glowseedstudio/noctdock">github.com/glowseedstudio/noctdock</a></p>
+    <p style="margin-top: 1rem; font-size: 0.85rem;">Apache License 2.0</p>
+  </footer>
+</body>
+</html>
