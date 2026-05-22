@@ -511,38 +511,102 @@ tr:hover td {
 }
 
 /* Screenshots */
+.screenshots-intro {
+  max-width: 40rem;
+  color: var(--muted);
+  margin: 0 0 2rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
 .screenshots {
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.screenshot-frame {
+  position: relative;
+  padding: 2px;
+  border-radius: 22px;
+  background: linear-gradient(
+    135deg,
+    rgba(93, 235, 255, 0.55),
+    rgba(130, 107, 255, 0.45) 45%,
+    rgba(255, 79, 216, 0.5) 80%,
+    rgba(93, 235, 255, 0.4)
+  );
+  box-shadow:
+    0 0 0 1px rgba(221, 231, 255, 0.06),
+    0 20px 60px rgba(0, 0, 0, 0.55),
+    0 0 80px rgba(93, 235, 255, 0.08);
+}
+
+.screenshot-frame-inner {
+  border-radius: 20px;
+  overflow: hidden;
+  background: #000;
+  line-height: 0;
+}
+
+.screenshot-frame img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .screenshot {
-  margin-bottom: 2.5rem;
+  margin-bottom: 3rem;
 }
 
-.screenshot img {
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+.screenshot.featured .screenshot-frame {
+  box-shadow:
+    0 0 0 1px rgba(221, 231, 255, 0.08),
+    0 28px 80px rgba(0, 0, 0, 0.65),
+    0 0 120px rgba(255, 79, 216, 0.12);
 }
 
 .screenshot figcaption {
-  margin-top: 0.75rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.55;
+  margin-top: 1rem;
   text-align: center;
+}
+
+.screenshot .caption-label {
+  display: inline-block;
+  margin-bottom: 0.45rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  border: 1px solid rgba(93, 235, 255, 0.35);
+  background: rgba(93, 235, 255, 0.08);
+}
+
+.screenshot.featured .caption-label {
+  color: var(--magenta);
+  border-color: rgba(255, 79, 216, 0.4);
+  background: rgba(255, 79, 216, 0.1);
+}
+
+.screenshot .caption-text {
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  max-width: 36rem;
+  margin: 0 auto;
 }
 
 .screenshot-grid {
   display: grid;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  gap: 2rem;
+  margin-bottom: 3rem;
 }
 
 @media (min-width: 900px) {
-  .screenshot-grid.two {
+  .screenshot-grid.pair {
     grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
 }
 

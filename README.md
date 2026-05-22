@@ -29,7 +29,7 @@ No accounts. No cloud relay. No ads. No analytics.
 <tr>
 <td width="50%" valign="top">
 <p align="center"><img src="docs/screenshots/2.png" width="100%" alt="Game Hub launcher with favourites and emulator tiles"></p>
-<p align="center"><em>Trusted screen ready — launcher grid with favourites.</em></p>
+<p align="center"><em>Favourites shelf — trusted screen with NoctDock Azahar and emulator tiles.</em></p>
 </td>
 <td width="50%" valign="top">
 <p align="center"><img src="docs/screenshots/3.png" width="100%" alt="Tile actions for launch and favourites"></p>
