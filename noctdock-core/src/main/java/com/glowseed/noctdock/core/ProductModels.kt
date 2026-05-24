@@ -292,12 +292,27 @@ object ScreenCloakSessionTracker {
 }
 
 @Serializable
+enum class GameHubLauncherLayout {
+    Grid,
+    Cover,
+}
+
+@Serializable
+enum class GameHubControllerLayout(val label: String, val subtitle: String) {
+    Xbox("Xbox layout", "A on bottom · B on the right"),
+    Nintendo("Nintendo layout", "B on bottom · A on the right"),
+}
+
+@Serializable
 data class AppearanceSettings(
     val reducedMotion: Boolean = false,
     val backgroundTheme: NebulaTheme = NebulaTheme.CyanCore,
     val backgroundMotionMode: BackgroundMotionMode = BackgroundMotionMode.AnimatedNebula,
     val accentTheme: AccentTheme = AccentTheme.Cyan,
     val uiDensity: UiDensity = UiDensity.Comfortable,
+    val launcherLayout: GameHubLauncherLayout = GameHubLauncherLayout.Grid,
+    val controllerLayout: GameHubControllerLayout = GameHubControllerLayout.Xbox,
+    val controllerLayoutConfigured: Boolean = false,
     val hapticsEnabled: Boolean = true,
     val rememberLastReceiver: Boolean = true,
     val autoReconnect: Boolean = true,
@@ -318,6 +333,13 @@ object AppearanceDefaults {
         BackgroundMotionMode.MinimalDrift -> "Minimal Drift"
         BackgroundMotionMode.DeepSpace -> "Deep Space"
     }
+
+    fun launcherLayoutLabel(layout: GameHubLauncherLayout): String = when (layout) {
+        GameHubLauncherLayout.Grid -> "Grid"
+        GameHubLauncherLayout.Cover -> "Cover"
+    }
+
+    fun controllerLayoutLabel(layout: GameHubControllerLayout): String = layout.label
 }
 
 @Serializable

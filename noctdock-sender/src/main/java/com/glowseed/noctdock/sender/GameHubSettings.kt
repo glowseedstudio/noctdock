@@ -1,11 +1,19 @@
 package com.glowseed.noctdock.sender
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,31 +38,51 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.glowseed.noctdock.core.AppearanceDefaults
 import com.glowseed.noctdock.core.LocalNoctAccent
 import com.glowseed.noctdock.core.NoctColors
 import com.glowseed.noctdock.core.NoctGlassCard
+import com.glowseed.noctdock.core.NoctMetricRow
+import com.glowseed.noctdock.core.NoctPrimaryButton
 import com.glowseed.noctdock.core.NoctPrivacyBar
 import com.glowseed.noctdock.core.NoctSecondaryButton
 import com.glowseed.noctdock.core.NoctSelectableCard
 import com.glowseed.noctdock.core.NoctSpacing
-import com.glowseed.noctdock.core.NoctStatusPill
 import com.glowseed.noctdock.core.ScreenCloakMode
 import com.glowseed.noctdock.core.SoundMode
+import com.glowseed.noctdock.core.StreamHealth
+import com.glowseed.noctdock.core.StreamHealthCalculator
 import com.glowseed.noctdock.core.noctSpace
 import kotlin.math.roundToInt
 
 @Composable
-internal fun GameHubSettingsStage(uiState: SenderUiState, viewModel: SenderViewModel, focusedIndex: Int, listInputActive: Boolean, reducedMotion: Boolean, onOpenDiagnostics: () -> Unit) {
+internal fun GameHubSettingsStage(
+    uiState: SenderUiState,
+    viewModel: SenderViewModel,
+    focusedIndex: Int,
+    listInputActive: Boolean,
+    reducedMotion: Boolean,
+    systemStatusExpanded: Boolean,
+    onSystemStatusExpandedChange: (Boolean) -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
     val context = LocalContext.current
     var showScreenCloakResultDialog by remember { mutableStateOf(false) }
     val overlayAllowed = ScreenCloakPermissionHelper.canDrawOverlays(context)
@@ -84,16 +112,19 @@ internal fun GameHubSettingsStage(uiState: SenderUiState, viewModel: SenderViewM
                 viewModel = viewModel,
                 overlayAllowed = overlayAllowed,
                 systemWriteAllowed = systemWriteAllowed,
-                onOpenDiagnostics = onOpenDiagnostics,
                 onScreenCloakTest = {
                     viewModel.refreshScreenCloakTest()
                     showScreenCloakResultDialog = true
                 },
             )
         }
-    LaunchedEffect(focusedIndex, listInputActive) {
+    val expandedSections = remember { mutableStateMapOf<String, Boolean>() }
+    LaunchedEffect(focusedIndex, listInputActive, rows) {
         if (!listInputActive) return@LaunchedEffect
         bringIntoView.bringIntoView()
+        gameHubSettingsSectionForFocusIndex(rows, focusedIndex)?.let { sectionTitle ->
+            expandedSections[sectionTitle] = true
+        }
     }
 
     Column(
@@ -106,7 +137,14 @@ internal fun GameHubSettingsStage(uiState: SenderUiState, viewModel: SenderViewM
         GameHubSettingsFeaturedStrip(uiState = uiState)
         var focusCursor = 0
         groupGameHubSettingsSections(rows).forEach { block ->
-            GameHubSettingsSection(title = block.header.title, subtitle = block.header.subtitle) {
+            val sectionTitle = block.header.title
+            val sectionExpanded = expandedSections[sectionTitle] ?: gameHubSettingsSectionDefaultExpanded(sectionTitle)
+            GameHubSettingsSection(
+                title = sectionTitle,
+                subtitle = block.header.subtitle,
+                expanded = sectionExpanded,
+                onExpandedChange = { expandedSections[sectionTitle] = it },
+            ) {
                 block.children.forEach { row ->
                     when (row) {
                         is GameHubSettingsRow.Note ->
@@ -196,6 +234,13 @@ internal fun GameHubSettingsStage(uiState: SenderUiState, viewModel: SenderViewM
                 }
             }
         }
+        GameHubSettingsSystemStatusCard(
+            uiState = uiState,
+            viewModel = viewModel,
+            expanded = systemStatusExpanded,
+            onExpandedChange = onSystemStatusExpandedChange,
+            onOpenDiagnostics = onOpenDiagnostics,
+        )
         Spacer(modifier = Modifier.height(4.dp))
     }
 
@@ -253,37 +298,150 @@ private fun GameHubSettingsFocusableRow(highlighted: Boolean, reducedMotion: Boo
 @Composable
 private fun GameHubSettingsFeaturedStrip(uiState: SenderUiState) {
     val accent = LocalNoctAccent.current
-    val chips =
-        listOf(
-            uiState.appearanceSettings.accentTheme.name,
-            uiState.appearanceSettings.uiDensity.name,
-            uiState.performanceSettings.soundMode.label.replace(" Mode", ""),
-            uiState.appearanceSettings.screenCloakMode.label,
-        )
-    NoctGlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                "Settings",
-                color = NoctColors.TextPrimary,
-                fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                "Tune experience, appearance, and sound without leaving the hub.",
-                color = NoctColors.TextSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+    val shape = RoundedCornerShape(18.dp)
+    val summary = gameHubSettingsActiveSummary(uiState)
+
+    Box(modifier = Modifier.fillMaxWidth().clip(shape)) {
+        NoctGlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            Column(
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .drawBehind {
+                        drawRoundRect(
+                            brush =
+                            Brush.radialGradient(
+                                colors =
+                                listOf(
+                                    accent.copy(alpha = 0.48f),
+                                    NoctColors.Magenta.copy(alpha = 0.28f),
+                                    NoctColors.Violet.copy(alpha = 0.16f),
+                                    Color(0x88101820),
+                                ),
+                                center = Offset(size.width * 0.24f, size.height * 0.32f),
+                                radius = size.maxDimension * 0.98f,
+                            ),
+                            cornerRadius = CornerRadius(18.dp.toPx()),
+                        )
+                        drawRoundRect(
+                            brush =
+                            Brush.linearGradient(
+                                colors =
+                                listOf(
+                                    Color(0x00000000),
+                                    Color(0x88080C12),
+                                ),
+                                start = Offset(0f, size.height * 0.45f),
+                                end = Offset(size.width, size.height),
+                            ),
+                            cornerRadius = CornerRadius(18.dp.toPx()),
+                        )
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                chips.forEach { label ->
-                    NoctStatusPill(label, accent)
+                Text(
+                    "Current settings",
+                    color = NoctColors.TextSecondary.copy(alpha = 0.94f),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    summary,
+                    color = accent.copy(alpha = 0.92f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "Hub appearance, sound routing, and streaming preferences.",
+                    color = NoctColors.TextSecondary.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+private fun gameHubSettingsActiveSummary(uiState: SenderUiState): String {
+    val appearance = uiState.appearanceSettings
+    return listOf(
+        appearance.accentTheme.name,
+        appearance.uiDensity.name,
+        AppearanceDefaults.launcherLayoutLabel(appearance.launcherLayout),
+        uiState.performanceSettings.soundMode.label.replace(" Mode", ""),
+        appearance.screenCloakMode.label,
+    ).joinToString(" · ")
+}
+
+@Composable
+private fun GameHubSettingsSection(
+    title: String,
+    subtitle: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(260),
+        label = "settings-section-chevron",
+    )
+
+    Box(modifier = Modifier.fillMaxWidth().clip(shape)) {
+        NoctGlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onExpandedChange(!expanded) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f).padding(end = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(title, color = NoctColors.TextPrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            subtitle,
+                            color = NoctColors.TextSecondary.copy(alpha = 0.9f),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    GameHubCollapseChevron(
+                        modifier = Modifier.rotate(chevronRotation),
+                        tint = NoctColors.TextSecondary.copy(alpha = 0.92f),
+                    )
+                }
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = fadeIn(tween(220)) + expandVertically(tween(260)),
+                    exit = fadeOut(tween(160)) + shrinkVertically(tween(220)),
+                ) {
+                    Column(
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(NoctColors.GlassBorder.copy(alpha = 0.45f)),
+                        )
+                        content()
+                    }
                 }
             }
         }
@@ -291,15 +449,116 @@ private fun GameHubSettingsFeaturedStrip(uiState: SenderUiState) {
 }
 
 @Composable
-private fun GameHubSettingsSection(title: String, subtitle: String, content: @Composable ColumnScope.() -> Unit) {
-    NoctGlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(title, color = NoctColors.TextPrimary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
-            Text(subtitle, color = NoctColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            content()
+private fun GameHubSettingsSystemStatusCard(
+    uiState: SenderUiState,
+    viewModel: SenderViewModel,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
+    val accent = LocalNoctAccent.current
+    val shape = RoundedCornerShape(18.dp)
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(260),
+        label = "system-status-chevron",
+    )
+    val snapshot = viewModel.diagnosticsSnapshot()
+    val streamGrade =
+        StreamHealthCalculator.grade(
+            StreamHealth(
+                packetLossPercent = snapshot.metrics.packetLossPercent,
+                jitterMs = snapshot.metrics.jitterMs,
+                queueDepth = snapshot.metrics.queueDepth,
+                droppedFramesPerMinute = snapshot.metrics.droppedFrames,
+                receiverDecodeErrors = 0,
+                thermalThrottling = false,
+                encoderOverloaded = false,
+            ),
+        )
+
+    Box(modifier = Modifier.fillMaxWidth().clip(shape)) {
+        NoctGlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onExpandedChange(!expanded) }
+                        .padding(horizontal = 14.dp, vertical = 13.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f).padding(end = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            "System Status",
+                            color = NoctColors.TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            "Detailed Console Mode health",
+                            color = NoctColors.TextSecondary.copy(alpha = 0.88f),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    GameHubCollapseChevron(
+                        modifier = Modifier.rotate(chevronRotation),
+                        tint = NoctColors.TextSecondary.copy(alpha = 0.92f),
+                    )
+                }
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = fadeIn(tween(220)) + expandVertically(tween(260)),
+                    exit = fadeOut(tween(160)) + shrinkVertically(tween(220)),
+                ) {
+                    Column(
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(NoctColors.GlassBorder.copy(alpha = 0.45f)),
+                        )
+                        NoctMetricRow("Stream health", streamGrade.name)
+                        NoctMetricRow("Current screen", snapshot.receiverName)
+                        NoctMetricRow("Connection state", snapshot.connectionState.name)
+                        NoctMetricRow("Stream status", snapshot.streamState.name)
+                        NoctMetricRow("Connection test", snapshot.connectionTestResult?.friendlyLabel ?: "Not run")
+                        NoctMetricRow("Detected handheld", snapshot.deviceProfile)
+                        NoctMetricRow("Recommended mode", snapshot.recommendedProfile)
+                        NoctMetricRow("Last error", snapshot.lastError?.message ?: "None")
+                        NoctPrimaryButton(
+                            text = "Copy support report",
+                            onClick = viewModel::copySupportReportToClipboard,
+                            minHeight = 42.dp,
+                        )
+                        if (uiState.diagnosticsCopied) {
+                            Text(
+                                "Support report copied to clipboard.",
+                                color = NoctColors.Green,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Text(
+                            "View full System Status",
+                            color = accent.copy(alpha = 0.92f),
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.clickable(onClick = onOpenDiagnostics),
+                        )
+                    }
+                }
+            }
         }
     }
 }

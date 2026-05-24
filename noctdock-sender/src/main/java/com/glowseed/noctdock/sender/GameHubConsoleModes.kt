@@ -27,6 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -171,17 +176,11 @@ internal fun GameHubConsoleModesStage(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            NoctStatusPill(deviceRecommendation, NoctColors.Cyan)
-        }
         GameHubConsoleModesFeaturedStrip(
             profile = selectedProfile,
             batterySaver = uiState.performanceSettings.batterySaverMode,
             soundMode = uiState.performanceSettings.soundMode,
+            deviceRecommendation = deviceRecommendation,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -232,40 +231,101 @@ internal fun GameHubConsoleModesStage(
 }
 
 @Composable
-private fun GameHubConsoleModesFeaturedStrip(profile: StreamProfile, batterySaver: Boolean, soundMode: SoundMode) {
+private fun GameHubConsoleModesFeaturedStrip(
+    profile: StreamProfile,
+    batterySaver: Boolean,
+    soundMode: SoundMode,
+    deviceRecommendation: String,
+) {
     val accent = consoleModeAccent(profile)
+    val shape = RoundedCornerShape(18.dp)
     val chips =
         buildList {
             addAll(consoleModeChips(profile))
             add(soundMode.label.replace(" Mode", ""))
             if (batterySaver) add("Battery Saver")
         }
-    NoctGlassCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ConsoleModeOrbBadge(profile = profile, accent = accent, modifier = Modifier.size(40.dp), iconSize = 18.dp)
+
+    Box(modifier = Modifier.fillMaxWidth().clip(shape)) {
+        NoctGlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .drawBehind {
+                        drawRoundRect(
+                            brush =
+                            Brush.radialGradient(
+                                colors =
+                                listOf(
+                                    accent.copy(alpha = 0.48f),
+                                    NoctColors.Magenta.copy(alpha = 0.28f),
+                                    NoctColors.Violet.copy(alpha = 0.16f),
+                                    Color(0x88101820),
+                                ),
+                                center = Offset(size.width * 0.24f, size.height * 0.32f),
+                                radius = size.maxDimension * 0.98f,
+                            ),
+                            cornerRadius = CornerRadius(18.dp.toPx()),
+                        )
+                        drawRoundRect(
+                            brush =
+                            Brush.linearGradient(
+                                colors =
+                                listOf(
+                                    Color(0x00000000),
+                                    Color(0x88080C12),
+                                ),
+                                start = Offset(0f, size.height * 0.45f),
+                                end = Offset(size.width, size.height),
+                            ),
+                            cornerRadius = CornerRadius(18.dp.toPx()),
+                        )
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    profile.title,
-                    color = NoctColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    consoleModeDescription(profile),
-                    color = NoctColors.TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        "Current settings",
+                        color = NoctColors.TextSecondary.copy(alpha = 0.94f),
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    Text(
+                        deviceRecommendation,
+                        color = accent.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ConsoleModeOrbBadge(profile = profile, accent = accent, modifier = Modifier.size(40.dp), iconSize = 18.dp)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Text(
+                            profile.title,
+                            color = NoctColors.TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            consoleModeDescription(profile),
+                            color = NoctColors.TextSecondary.copy(alpha = 0.92f),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),

@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +25,6 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -38,10 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +56,7 @@ import com.glowseed.noctdock.core.AppLibrarySorter
 import com.glowseed.noctdock.core.LocalLibraryApp
 import com.glowseed.noctdock.core.NoctColors
 import com.glowseed.noctdock.core.NoctGlassCard
+
 internal enum class GameHubHomePanel {
     Launcher,
     Library,
@@ -172,12 +178,15 @@ internal fun GameHubLibraryStage(
     filtersFocused: Boolean,
     gridInputActive: Boolean,
     focusedIndex: Int,
+    overflowRequestIndex: Int? = null,
+    onOverflowRequestConsumed: () -> Unit = {},
     onFilterChange: (GameHubLibraryFilter) -> Unit,
     onFocusedIndexChange: (Int) -> Unit,
     onRefresh: () -> Unit,
     onQueryChange: (String) -> Unit,
     onToggleFavourite: (LocalLibraryApp) -> Unit,
     onAddApp: (LocalLibraryApp) -> Unit,
+    onRemoveApp: (LocalLibraryApp) -> Unit,
     onLaunchApp: (LocalLibraryApp) -> Unit,
 ) {
     val entries =
@@ -186,10 +195,33 @@ internal fun GameHubLibraryStage(
         }
     val gridFocused = gridInputActive && focusedIndex in entries.indices
     var searchExpanded by remember { mutableStateOf(uiState.libraryQuery.isNotBlank()) }
+    var menuEntry by remember { mutableStateOf<GameHubLibraryGridEntry.App?>(null) }
     val searchFocus = remember { FocusRequester() }
+    val filterScrollState = rememberScrollState()
+    val filterBringIntoView = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(overflowRequestIndex, entries) {
+        val index = overflowRequestIndex ?: return@LaunchedEffect
+        when (val entry = entries.getOrNull(index)) {
+            is GameHubLibraryGridEntry.App -> menuEntry = entry
+            else -> Unit
+        }
+        onOverflowRequestConsumed()
+    }
+
+    BackHandler(enabled = menuEntry != null) {
+        menuEntry = null
+    }
 
     LaunchedEffect(searchExpanded) {
         if (searchExpanded) searchFocus.requestFocus()
+    }
+
+    LaunchedEffect(filterFocusIndex, filtersFocused) {
+        if (filtersFocused) {
+            filterScrollState.animateScrollTo((filterFocusIndex * 88).coerceAtLeast(0))
+            filterBringIntoView.bringIntoView()
+        }
     }
 
     Column(
@@ -205,17 +237,24 @@ internal fun GameHubLibraryStage(
                 modifier =
                 Modifier
                     .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(filterScrollState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 GameHubLibraryFilter.entries.forEachIndexed { index, option ->
+                    val chipHighlighted = filtersFocused && filterFocusIndex == index
                     GameHubLibraryFilterChip(
                         label = option.label,
                         selected = filter == option,
-                        highlighted = filtersFocused && filterFocusIndex == index,
+                        highlighted = chipHighlighted,
                         accent = accent,
                         reducedMotion = reducedMotion,
+                        modifier =
+                        if (chipHighlighted) {
+                            Modifier.bringIntoViewRequester(filterBringIntoView)
+                        } else {
+                            Modifier
+                        },
                         onClick = {
                             onFilterChange(option)
                             onFocusedIndexChange(0)
@@ -295,6 +334,7 @@ internal fun GameHubLibraryStage(
                     focusedIndex = focusedIndex,
                     gridInputActive = gridInputActive,
                     gridFocused = gridFocused,
+                    onFocusedIndexChange = onFocusedIndexChange,
                     onEntryActivate = { entry ->
                         when (entry) {
                             is GameHubLibraryGridEntry.App -> onLaunchApp(entry.item.model)
@@ -303,10 +343,80 @@ internal fun GameHubLibraryStage(
                     },
                     onEntryLongPress = { entry ->
                         when (entry) {
-                            is GameHubLibraryGridEntry.App -> onToggleFavourite(entry.item.model)
+                            is GameHubLibraryGridEntry.App -> menuEntry = entry
                             is GameHubLibraryGridEntry.AddCandidate -> onAddApp(entry.item.model)
                         }
                     },
+                )
+            }
+        }
+    }
+    menuEntry?.let { entry ->
+        GameHubLibraryEntryMenu(
+            entry = entry,
+            accent = accent,
+            reducedMotion = reducedMotion,
+            onDismiss = { menuEntry = null },
+            onFavourite = {
+                onToggleFavourite(entry.item.model)
+                menuEntry = null
+            },
+            onRemove = {
+                val nextFocus =
+                    if (focusedIndex >= entries.lastIndex) {
+                        (entries.size - 2).coerceAtLeast(0)
+                    } else {
+                        focusedIndex
+                    }
+                onRemoveApp(entry.item.model)
+                menuEntry = null
+                onFocusedIndexChange(nextFocus)
+            },
+        )
+    }
+}
+
+@Composable
+private fun GameHubLibraryEntryMenu(
+    entry: GameHubLibraryGridEntry.App,
+    accent: Color,
+    reducedMotion: Boolean,
+    onDismiss: () -> Unit,
+    onFavourite: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    GameHubGlassOverlay(
+        accent = accent,
+        reducedMotion = reducedMotion,
+        onDismiss = onDismiss,
+        panelAlignment = Alignment.BottomCenter,
+        panelWidthFraction = 0.72f,
+        panelMaxWidth = 280.dp,
+        panelModifier = Modifier.padding(bottom = 28.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                entry.item.model.label,
+                color = NoctColors.TextPrimary,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            GameHubOverflowMenuRow(
+                label = if (entry.item.model.isFavourite) "Remove favourite" else "Add favourite",
+                trailing = if (entry.item.model.isFavourite) "★" else "☆",
+                trailingColor = NoctColors.Magenta,
+                onClick = onFavourite,
+            )
+            if (entry.removable) {
+                GameHubOverflowMenuRow(
+                    label = "Remove from library",
+                    trailing = "✕",
+                    trailingColor = NoctColors.Magenta,
+                    onClick = onRemove,
                 )
             }
         }
@@ -388,17 +498,71 @@ private fun GameHubLibraryRefreshGlyph() {
 }
 
 @Composable
-private fun GameHubLibraryFilterChip(label: String, selected: Boolean, highlighted: Boolean, accent: Color, reducedMotion: Boolean, onClick: () -> Unit) {
+private fun GameHubLibraryFilterChip(label: String, selected: Boolean, highlighted: Boolean, accent: Color, reducedMotion: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
     val ringActive = selected || highlighted
+    val borderBrush =
+        remember(accent, ringActive) {
+            if (ringActive) {
+                Brush.linearGradient(
+                    listOf(
+                        accent.copy(alpha = 0.82f),
+                        NoctColors.Cyan.copy(alpha = 0.58f),
+                        NoctColors.Magenta.copy(alpha = 0.52f),
+                    ),
+                )
+            } else {
+                Brush.linearGradient(
+                    listOf(
+                        NoctColors.GlassBorder.copy(alpha = 0.55f),
+                        NoctColors.GlassBorder.copy(alpha = 0.28f),
+                    ),
+                )
+            }
+        }
     Box(
         modifier =
-        Modifier
+        modifier
             .clip(shape)
+            .drawBehind {
+                val pillCorner = CornerRadius(size.height / 2f, size.height / 2f)
+                if (ringActive) {
+                    drawRoundRect(
+                        brush =
+                        Brush.linearGradient(
+                            colors =
+                            listOf(
+                                accent.copy(alpha = if (highlighted) 0.34f else 0.24f),
+                                Color(0xCC141C28),
+                                NoctColors.Violet.copy(alpha = 0.16f),
+                            ),
+                            start = Offset.Zero,
+                            end = Offset(size.width, size.height),
+                        ),
+                        cornerRadius = pillCorner,
+                    )
+                    drawRoundRect(
+                        brush =
+                        Brush.radialGradient(
+                            colors =
+                            listOf(
+                                Color.White.copy(alpha = 0.10f),
+                                Color.Transparent,
+                            ),
+                            center = Offset(size.width * 0.5f, 0f),
+                            radius = size.height * 1.6f,
+                        ),
+                        cornerRadius = pillCorner,
+                    )
+                } else {
+                    drawRoundRect(color = Color(0x77101824), cornerRadius = pillCorner)
+                }
+            }
+            .border(width = if (ringActive) 1.5.dp else 1.dp, brush = borderBrush, shape = shape)
             .gameHubFocusRing(
                 shape = shape,
                 accent = accent,
-                focused = ringActive,
+                focused = highlighted,
                 strokeDp =
                 when {
                     highlighted -> 3.5f
@@ -409,7 +573,7 @@ private fun GameHubLibraryFilterChip(label: String, selected: Boolean, highlight
                 cornerRadius = 50.dp,
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -429,99 +593,142 @@ private fun GameHubLibraryGrid(
     focusedIndex: Int,
     gridInputActive: Boolean,
     gridFocused: Boolean,
+    onFocusedIndexChange: (Int) -> Unit,
     onEntryActivate: (GameHubLibraryGridEntry) -> Unit,
     onEntryLongPress: (GameHubLibraryGridEntry) -> Unit,
 ) {
-    val scrollState = rememberScrollState()
     val bringIntoView = remember { BringIntoViewRequester() }
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val layout = GameHubViewport.libraryGridLayout(maxWidth, maxHeight, entries.size.coerceAtLeast(1))
-        val density = LocalDensity.current
-        LaunchedEffect(focusedIndex, gridInputActive, layout.columns, layout.tileHeight, layout.gap, entries.size) {
-            if (!gridInputActive || focusedIndex !in entries.indices) return@LaunchedEffect
-            val row = focusedIndex / layout.columns
-            with(density) {
-                val rowStridePx = (layout.tileHeight + layout.gap).roundToPx()
-                val rowTopPx = rowStridePx * row
-                val rowBottomPx = rowTopPx + layout.tileHeight.roundToPx()
-                val viewportPx = maxHeight.roundToPx()
-                val target =
-                    when {
-                        rowTopPx < scrollState.value -> rowTopPx
-                        rowBottomPx > scrollState.value + viewportPx -> (rowBottomPx - viewportPx).coerceAtLeast(0)
-                        else -> scrollState.value
-                    }.coerceIn(0, scrollState.maxValue)
-                scrollState.animateScrollTo(target)
-            }
+
+    LaunchedEffect(focusedIndex, gridInputActive) {
+        if (gridInputActive) {
             bringIntoView.bringIntoView()
         }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val pageCount = gameHubPagedGridPageCount(entries.size, GAME_HUB_LIBRARY_PAGE_SIZE)
+        val layout =
+            remember(maxWidth, maxHeight, pageCount) {
+                GameHubViewport.connectedLibraryGridLayout(
+                    stageWidth = maxWidth,
+                    stageHeight = maxHeight,
+                    pageDotsReserved = if (pageCount > 1) 10.dp else 0.dp,
+                )
+            }
+        val pageIndex = gameHubPagedGridPageIndex(focusedIndex, GAME_HUB_LIBRARY_PAGE_SIZE)
+        val focusedLocalRow = gameHubLibraryGridLocalRow(focusedIndex)
+
         Column(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = layout.contentInsetH),
-            verticalArrangement = Arrangement.spacedBy(layout.gap),
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            for (row in 0 until layout.rows) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(layout.tileHeight),
-                    horizontalArrangement = Arrangement.spacedBy(layout.gap),
-                    verticalAlignment = Alignment.Top,
+            GameHubHorizontalPagePager(
+                pageCount = pageCount,
+                currentPage = pageIndex,
+                onPageChanged = { page ->
+                    onFocusedIndexChange(
+                        gameHubFocusIndexForPage(
+                            page = page,
+                            currentIndex = focusedIndex,
+                            columns = GAME_HUB_LIBRARY_GRID_COLUMNS,
+                            pageSize = GAME_HUB_LIBRARY_PAGE_SIZE,
+                            count = entries.size,
+                        ),
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            ) { page ->
+                val pageStart = page * GAME_HUB_LIBRARY_PAGE_SIZE
+                val pageItems = entries.drop(pageStart).take(GAME_HUB_LIBRARY_PAGE_SIZE)
+                Column(
+                    modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = layout.contentInsetH),
+                    verticalArrangement = Arrangement.spacedBy(layout.gap),
                 ) {
-                    for (col in 0 until layout.columns) {
-                        val index = row * layout.columns + col
-                        if (index < entries.size) {
-                            val entry = entries[index]
-                            val item = entry as? GameHubLibraryGridEntry.App
-                            val label =
-                                when (entry) {
-                                    is GameHubLibraryGridEntry.App -> entry.item.model.label
-                                    is GameHubLibraryGridEntry.AddCandidate -> entry.item.model.label
-                                }
-                            val icon =
-                                when (entry) {
-                                    is GameHubLibraryGridEntry.App -> entry.item.icon
-                                    is GameHubLibraryGridEntry.AddCandidate -> entry.item.icon
-                                }
-                            val packageName =
-                                when (entry) {
-                                    is GameHubLibraryGridEntry.App -> entry.item.model.packageName
-                                    is GameHubLibraryGridEntry.AddCandidate -> entry.item.model.packageName
-                                }
-                            val launcherItem =
-                                GameHubLauncherItem(
-                                    id = packageName,
-                                    label = label,
-                                    shelf = GameHubShelfKind.AndroidGames,
-                                    action = GameHubTileActionKind.LaunchOnScreen,
-                                    isFavourite = item?.item?.model?.isFavourite == true,
-                                )
-                            val tileFocused = gridInputActive && index == focusedIndex
-                            GameHubLauncherTile(
-                                item = launcherItem,
-                                iconPackageName = packageName,
-                                icon = icon,
-                                tileWidth = layout.tileWidth,
-                                tileHeight = layout.tileHeight,
-                                accent = accent,
-                                reducedMotion = reducedMotion,
-                                focused = tileFocused,
-                                rowHasFocus = gridFocused,
-                                modifier =
-                                if (tileFocused) {
-                                    Modifier.bringIntoViewRequester(bringIntoView)
+                    for (row in 0 until GAME_HUB_LIBRARY_GRID_ROWS) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(layout.tileHeight),
+                            horizontalArrangement = Arrangement.spacedBy(layout.gap),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            for (col in 0 until GAME_HUB_LIBRARY_GRID_COLUMNS) {
+                                val localIndex = row * GAME_HUB_LIBRARY_GRID_COLUMNS + col
+                                val globalIndex = pageStart + localIndex
+                                if (globalIndex < entries.size && localIndex < pageItems.size) {
+                                    val entry = pageItems[localIndex]
+                                    val item = entry as? GameHubLibraryGridEntry.App
+                                    val label =
+                                        when (entry) {
+                                            is GameHubLibraryGridEntry.App -> entry.item.model.label
+                                            is GameHubLibraryGridEntry.AddCandidate -> entry.item.model.label
+                                        }
+                                    val icon =
+                                        when (entry) {
+                                            is GameHubLibraryGridEntry.App -> entry.item.icon
+                                            is GameHubLibraryGridEntry.AddCandidate -> entry.item.icon
+                                        }
+                                    val packageName =
+                                        when (entry) {
+                                            is GameHubLibraryGridEntry.App -> entry.item.model.packageName
+                                            is GameHubLibraryGridEntry.AddCandidate -> entry.item.model.packageName
+                                        }
+                                    val launcherItem =
+                                        GameHubLauncherItem(
+                                            id = packageName,
+                                            label = label,
+                                            shelf = GameHubShelfKind.AndroidGames,
+                                            action = GameHubTileActionKind.LaunchOnScreen,
+                                            isFavourite = item?.item?.model?.isFavourite == true,
+                                        )
+                                    val tileFocused = gridInputActive && focusedIndex == globalIndex
+                                    val rowFocused = gridInputActive && focusedLocalRow == row
+                                    GameHubLauncherTile(
+                                        item = launcherItem,
+                                        iconPackageName = packageName,
+                                        icon = icon,
+                                        tileWidth = layout.tileWidth,
+                                        tileHeight = layout.tileHeight,
+                                        accent = accent,
+                                        reducedMotion = reducedMotion,
+                                        focused = tileFocused,
+                                        rowHasFocus = rowFocused,
+                                        modifier =
+                                        if (tileFocused) {
+                                            Modifier.bringIntoViewRequester(bringIntoView)
+                                        } else {
+                                            Modifier
+                                        },
+                                        onClick = { onEntryActivate(entry) },
+                                        onLongPress = { onEntryLongPress(entry) },
+                                    )
                                 } else {
-                                    Modifier
-                                },
-                                onClick = { onEntryActivate(entry) },
-                                onLongPress = { onEntryLongPress(entry) },
-                            )
-                        } else {
-                            androidx.compose.foundation.layout.Spacer(
-                                modifier = Modifier.size(layout.tileWidth, layout.tileHeight),
-                            )
+                                    Spacer(modifier = Modifier.size(layout.tileWidth, layout.tileHeight))
+                                }
+                            }
                         }
+                    }
+                }
+            }
+            if (pageCount > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    repeat(pageCount) { index ->
+                        val active = index == pageIndex
+                        Box(
+                            modifier =
+                            Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(if (active) 8.dp else 6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (active) accent.copy(alpha = 0.9f) else NoctColors.TextSecondary.copy(alpha = 0.35f),
+                                ),
+                        )
                     }
                 }
             }

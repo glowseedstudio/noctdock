@@ -46,6 +46,8 @@ import com.glowseed.noctdock.core.DiscoverySorter
 import com.glowseed.noctdock.core.DiscoveryState
 import com.glowseed.noctdock.core.DisplayRefreshRateHelper
 import com.glowseed.noctdock.core.EncoderCapabilitySummary
+import com.glowseed.noctdock.core.GameHubControllerLayout
+import com.glowseed.noctdock.core.GameHubLauncherLayout
 import com.glowseed.noctdock.core.LatencyPriority
 import com.glowseed.noctdock.core.LocalLibraryApp
 import com.glowseed.noctdock.core.ManualConnectionValidator
@@ -1332,6 +1334,19 @@ class SenderViewModel(private val app: Application) : AndroidViewModel(app) {
     fun updateAccentTheme(theme: AccentTheme) = saveAppearance(_uiState.value.appearanceSettings.copy(accentTheme = theme))
 
     fun updateDensity(density: UiDensity) = saveAppearance(_uiState.value.appearanceSettings.copy(uiDensity = density))
+
+    fun updateLauncherLayout(layout: GameHubLauncherLayout) = saveAppearance(_uiState.value.appearanceSettings.copy(launcherLayout = layout))
+
+    fun confirmControllerLayout(layout: GameHubControllerLayout) =
+        saveAppearance(
+            _uiState.value.appearanceSettings.copy(
+                controllerLayout = layout,
+                controllerLayoutConfigured = true,
+            ),
+        )
+
+    fun updateControllerLayout(layout: GameHubControllerLayout) =
+        saveAppearance(_uiState.value.appearanceSettings.copy(controllerLayout = layout))
 
     fun updateHaptics(enabled: Boolean) = saveAppearance(_uiState.value.appearanceSettings.copy(hapticsEnabled = enabled))
     fun updateScreenCloakMode(mode: ScreenCloakMode) = saveAppearance(_uiState.value.appearanceSettings.copy(screenCloakMode = mode)).also {

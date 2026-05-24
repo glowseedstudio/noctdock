@@ -389,16 +389,54 @@ fun NoctGlassCard(modifier: Modifier = Modifier, contentPadding: PaddingValues =
 fun NoctSelectableCard(selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, contentPadding: PaddingValues = PaddingValues(NoctSpacing.lg), content: @Composable () -> Unit) {
     val accent = LocalNoctAccent.current
     val shape = RoundedCornerShape(24.dp)
-    Surface(
+    Box(
         modifier =
         modifier
+            .then(
+                if (selected) {
+                    Modifier.drawWithCache {
+                        val corner = CornerRadius(24.dp.toPx(), 24.dp.toPx())
+                        val leftGlow =
+                            Brush.radialGradient(
+                                colors =
+                                listOf(
+                                    accent.copy(alpha = 0.22f),
+                                    NoctColors.Cyan.copy(alpha = 0.18f),
+                                    Color.Transparent,
+                                ),
+                                center = Offset(size.width * 0.12f, size.height * 0.48f),
+                                radius = size.maxDimension * 0.44f,
+                            )
+                        val rightGlow =
+                            Brush.radialGradient(
+                                colors =
+                                listOf(
+                                    NoctColors.Magenta.copy(alpha = 0.16f),
+                                    NoctColors.Violet.copy(alpha = 0.10f),
+                                    Color.Transparent,
+                                ),
+                                center = Offset(size.width * 0.88f, size.height * 0.36f),
+                                radius = size.maxDimension * 0.42f,
+                            )
+                        onDrawBehind {
+                            drawRoundRect(brush = leftGlow, cornerRadius = corner)
+                            drawRoundRect(brush = rightGlow, cornerRadius = corner)
+                        }
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .clip(shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .then(if (selected) Modifier.noctGradientBorder(shape) else Modifier),
-        color = if (selected) Color(0xC2141A28) else NoctColors.Glass,
-        contentColor = NoctColors.TextPrimary,
-        border = BorderStroke(1.dp, if (selected) accent.copy(alpha = 0.18f) else NoctColors.GlassBorder),
-        shape = shape,
+            .background(if (selected) Color(0xA8080D17) else NoctColors.Glass, shape)
+            .then(
+                if (selected) {
+                    Modifier.noctGradientBorder(shape)
+                } else {
+                    Modifier.border(1.dp, NoctColors.GlassBorder, shape)
+                },
+            )
+            .clickable(role = Role.Button, onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(contentPadding)) { content() }
     }
@@ -1005,102 +1043,98 @@ fun NoctPrivacyBar(modifier: Modifier = Modifier) {
         border = BorderStroke(1.dp, NoctColors.Cyan.copy(alpha = 0.28f)),
         shape = RoundedCornerShape(22.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(noctSpace(NoctSpacing.md)),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Canvas(modifier = Modifier.size(24.dp).semantics { contentDescription = "Local privacy" }) {
-                val stroke = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
-                drawRoundRect(
-                    NoctColors.Green.copy(alpha = 0.84f),
-                    style = stroke,
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(noctSpace(NoctSpacing.md)),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Canvas(modifier = Modifier.size(24.dp).semantics { contentDescription = "Local privacy" }) {
+                    val stroke = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+                    drawRoundRect(
+                        NoctColors.Green.copy(alpha = 0.84f),
+                        style = stroke,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()),
+                    )
+                    drawLine(
+                        NoctColors.Green.copy(alpha = 0.84f),
+                        Offset(size.width * 0.28f, size.height * 0.52f),
+                        Offset(
+                            size.width * 0.45f,
+                            size.height * 0.68f,
+                        ),
+                        strokeWidth = 2.2.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                    drawLine(
+                        NoctColors.Green.copy(alpha = 0.84f),
+                        Offset(size.width * 0.45f, size.height * 0.68f),
+                        Offset(
+                            size.width * 0.74f,
+                            size.height * 0.34f,
+                        ),
+                        strokeWidth = 2.2.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
+                Text(
+                    "Local privacy",
+                    color = NoctColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
-                drawLine(
-                    NoctColors.Green.copy(alpha = 0.84f),
-                    Offset(size.width * 0.28f, size.height * 0.52f),
-                    Offset(
-                        size.width * 0.45f,
-                        size.height * 0.68f,
-                    ),
-                    strokeWidth = 2.2.dp.toPx(),
-                    cap = StrokeCap.Round,
-                )
-                drawLine(
-                    NoctColors.Green.copy(alpha = 0.84f),
-                    Offset(size.width * 0.45f, size.height * 0.68f),
-                    Offset(
-                        size.width * 0.74f,
-                        size.height * 0.34f,
-                    ),
-                    strokeWidth = 2.2.dp.toPx(),
-                    cap = StrokeCap.Round,
-                )
-            }
-            Text(
-                "Local privacy",
-                color = NoctColors.TextPrimary,
-                fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Canvas(modifier = Modifier.size(width = 1.dp, height = 18.dp)) {
-                drawLine(
-                    NoctColors.GlassBorder.copy(alpha = 0.72f),
-                    Offset(size.width * 0.5f, 0f),
-                    Offset(size.width * 0.5f, size.height),
-                    strokeWidth = size.width,
-                )
+                Spacer(modifier = Modifier.weight(1f))
+                Canvas(modifier = Modifier.size(16.dp).semantics { contentDescription = "Care" }) {
+                    val stroke = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
+                    drawLine(
+                        NoctColors.Magenta.copy(alpha = 0.82f),
+                        Offset(size.width * 0.50f, size.height * 0.82f),
+                        Offset(
+                            size.width * 0.18f,
+                            size.height * 0.48f,
+                        ),
+                        strokeWidth = stroke.width,
+                        cap = StrokeCap.Round,
+                    )
+                    drawLine(
+                        NoctColors.Magenta.copy(alpha = 0.82f),
+                        Offset(size.width * 0.50f, size.height * 0.82f),
+                        Offset(
+                            size.width * 0.82f,
+                            size.height * 0.48f,
+                        ),
+                        strokeWidth = stroke.width,
+                        cap = StrokeCap.Round,
+                    )
+                    drawCircle(
+                        NoctColors.Magenta.copy(alpha = 0.82f),
+                        radius = size.minDimension * 0.16f,
+                        center = Offset(
+                            size.width * 0.28f,
+                            size.height * 0.36f,
+                        ),
+                        style = stroke,
+                    )
+                    drawCircle(
+                        NoctColors.Magenta.copy(alpha = 0.82f),
+                        radius = size.minDimension * 0.16f,
+                        center = Offset(
+                            size.width * 0.72f,
+                            size.height * 0.36f,
+                        ),
+                        style = stroke,
+                    )
+                }
             }
             Text(
                 "Local network only. No accounts. No analytics. Your library stays on this device.",
                 color = NoctColors.TextSecondary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 20.sp),
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(start = 32.dp),
             )
-            Canvas(modifier = Modifier.size(16.dp).semantics { contentDescription = "Care" }) {
-                val stroke = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
-                drawLine(
-                    NoctColors.Magenta.copy(alpha = 0.82f),
-                    Offset(size.width * 0.50f, size.height * 0.82f),
-                    Offset(
-                        size.width * 0.18f,
-                        size.height * 0.48f,
-                    ),
-                    strokeWidth = stroke.width,
-                    cap = StrokeCap.Round,
-                )
-                drawLine(
-                    NoctColors.Magenta.copy(alpha = 0.82f),
-                    Offset(size.width * 0.50f, size.height * 0.82f),
-                    Offset(
-                        size.width * 0.82f,
-                        size.height * 0.48f,
-                    ),
-                    strokeWidth = stroke.width,
-                    cap = StrokeCap.Round,
-                )
-                drawCircle(
-                    NoctColors.Magenta.copy(alpha = 0.82f),
-                    radius = size.minDimension * 0.16f,
-                    center = Offset(
-                        size.width * 0.28f,
-                        size.height * 0.36f,
-                    ),
-                    style = stroke,
-                )
-                drawCircle(
-                    NoctColors.Magenta.copy(alpha = 0.82f),
-                    radius = size.minDimension * 0.16f,
-                    center = Offset(
-                        size.width * 0.72f,
-                        size.height * 0.36f,
-                    ),
-                    style = stroke,
-                )
-            }
         }
     }
 }

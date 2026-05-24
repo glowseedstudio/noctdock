@@ -16,6 +16,8 @@ class AppearanceSettingsTest {
         assertFalse(settings.reducedMotion)
         assertEquals(ScreenCloakMode.OFF, settings.screenCloakMode)
         assertFalse(settings.screenCloakOverlayDisabledDueToTvPictureIssue)
+        assertFalse(settings.controllerLayoutConfigured)
+        assertEquals(GameHubControllerLayout.Xbox, settings.controllerLayout)
     }
 
     @Test

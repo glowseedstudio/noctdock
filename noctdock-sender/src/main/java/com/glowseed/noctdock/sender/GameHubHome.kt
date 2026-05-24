@@ -16,6 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +45,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -90,6 +94,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -101,9 +106,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.glowseed.noctdock.core.ConsoleModeState
 import com.glowseed.noctdock.core.DiscoveredReceiver
+import com.glowseed.noctdock.core.GameHubLauncherLayout
 import com.glowseed.noctdock.core.LocalLibraryApp
 import com.glowseed.noctdock.core.LocalNoctAccent
 import com.glowseed.noctdock.core.NoctColors
@@ -136,10 +143,31 @@ internal data class GameHubViewport(val width: Dp, val height: Dp) {
     val portalCardWidthFraction: Float get() = 0.92f
 
     val settingsCogSize: Dp get() = (minSide * 0.095f).coerceIn(40.dp, 46.dp)
+    val bottomChromeMinHeight: Dp get() = (minSide * 0.12f).coerceIn(48.dp, 68.dp)
 
     companion object {
         /** Same portal layout; spacing and orb shrink to fit [stageHeight] without scrolling. */
         fun portalFit(stageHeight: Dp): Float = minOf(1f, stageHeight.value / 460f).coerceIn(0.50f, 1f)
+
+        /** Fixed 4×3 connected-home grid; overflow uses horizontal paging. */
+        fun connectedHomeGridLayout(stageWidth: Dp, stageHeight: Dp, hintBarReserved: Dp = 0.dp): GameHubLauncherGridLayout {
+            val columns = GAME_HUB_LAUNCHER_GRID_COLUMNS
+            val rows = GAME_HUB_LAUNCHER_GRID_ROWS
+            val gap = 10.dp
+            val contentInsetH = (stageWidth * 0.05f).coerceIn(22.dp, 36.dp)
+            val availW = (stageWidth - contentInsetH * 2).coerceAtLeast(180.dp)
+            val availH = (stageHeight - hintBarReserved).coerceAtLeast(120.dp)
+            val tileWidth = (availW - gap * (columns - 1)) / columns
+            val tileHeight = (availH - gap * (rows - 1)) / rows
+            return GameHubLauncherGridLayout(
+                columns = columns,
+                rows = rows,
+                tileWidth = tileWidth.coerceIn(72.dp, 180.dp),
+                tileHeight = tileHeight.coerceIn(88.dp, 160.dp),
+                gap = gap,
+                contentInsetH = contentInsetH,
+            )
+        }
 
         /** Picks column count to fit all items; caps height only so rows use full width. */
         fun launcherGridLayout(stageWidth: Dp, stageHeight: Dp, itemCount: Int): GameHubLauncherGridLayout {
@@ -186,9 +214,30 @@ internal data class GameHubViewport(val width: Dp, val height: Dp) {
             return best
         }
 
+        /** Fixed 4×2 library grid; overflow uses horizontal paging like Home. */
+        fun connectedLibraryGridLayout(stageWidth: Dp, stageHeight: Dp, pageDotsReserved: Dp = 0.dp): GameHubLauncherGridLayout {
+            val columns = GAME_HUB_LIBRARY_GRID_COLUMNS
+            val rows = GAME_HUB_LIBRARY_GRID_ROWS
+            val gap = 10.dp
+            val contentInsetH = (stageWidth * 0.05f).coerceIn(22.dp, 36.dp)
+            val availW = (stageWidth - contentInsetH * 2).coerceAtLeast(180.dp)
+            val availH = (stageHeight - pageDotsReserved).coerceAtLeast(100.dp)
+            val tileWidth = (availW - gap * (columns - 1)) / columns
+            val tileHeight = (availH - gap * (rows - 1)) / rows
+            return GameHubLauncherGridLayout(
+                columns = columns,
+                rows = rows,
+                tileWidth = tileWidth.coerceIn(72.dp, 180.dp),
+                tileHeight = tileHeight.coerceIn(88.dp, 160.dp),
+                gap = gap,
+                contentInsetH = contentInsetH,
+            )
+        }
+
         /**
          * Same tile sizing as a full launcher page, but [GameHubLauncherGridLayout.rows] grows with
          * [itemCount] so the caller can put the grid in a vertical scroll when there are many apps.
+         * @deprecated Library uses [connectedLibraryGridLayout] with paging instead.
          */
         fun libraryGridLayout(stageWidth: Dp, stageHeight: Dp, itemCount: Int): GameHubLauncherGridLayout {
             val count = itemCount.coerceAtLeast(1)
@@ -234,6 +283,8 @@ internal data class GameHubLauncherItem(
     val isAzahar: Boolean = false,
     val isFavourite: Boolean = false,
     val profileOverrideId: String? = null,
+    val badgeLabel: String? = null,
+    val heroTile: Boolean = false,
 )
 
 internal data class GameHubShelf(val kind: GameHubShelfKind, val title: String, val items: List<GameHubLauncherItem>)
@@ -307,7 +358,7 @@ internal object GameHubHomeMapper {
 
     fun screenReadyPill(receiver: DiscoveredReceiver): String = "${receiver.displayName} ${ReceiverDisplayWording.readyLabel(receiver.formFactor)}"
 
-    /** All library apps in one list (manual + emulators from Settings → Library). Favourites first. */
+    /** Flat launcher list for connected Home — Azahar, favourites, then A–Z. No section labels. */
     fun launcherItems(uiState: SenderUiState, receiverReady: Boolean): List<GameHubLauncherItem> {
         val items = mutableListOf<GameHubLauncherItem>()
         if (uiState.azaharStatus.installed) {
@@ -324,21 +375,22 @@ internal object GameHubHomeMapper {
                     action = if (receiverReady) GameHubTileActionKind.PickAzaharMode else GameHubTileActionKind.ConnectFirst,
                     isAzahar = true,
                     profileOverrideId = azaharOverride,
+                    badgeLabel = "3DS",
                 )
         }
-        val sorted =
+        val libraryApps =
             uiState.libraryApps
                 .filter { !isAzaharPackage(it.model.packageName) }
                 .sortedWith(
                     compareByDescending<LibraryAppItem> { it.model.isFavourite }
                         .thenBy { it.model.label.lowercase() },
                 )
-        sorted.forEach { app ->
+        libraryApps.forEach { app ->
             items +=
                 GameHubLauncherItem(
                     id = app.model.packageName,
                     label = displayLabel(app.model),
-                    shelf = GameHubShelfKind.Favourites,
+                    shelf = GameHubShelfKind.AndroidGames,
                     isFavourite = app.model.isFavourite,
                     profileOverrideId = app.model.profileOverrideId,
                     action = if (receiverReady) GameHubTileActionKind.LaunchOnScreen else GameHubTileActionKind.ConnectFirst,
@@ -438,10 +490,10 @@ internal fun GameHubHomeScreen(
                 viewModel = viewModel,
                 overlayAllowed = settingsOverlayAllowed,
                 systemWriteAllowed = settingsSystemWriteAllowed,
-                onOpenDiagnostics = onOpenDiagnostics,
                 onScreenCloakTest = { viewModel.refreshScreenCloakTest() },
             )
         }
+    var systemStatusExpanded by remember { mutableStateOf(false) }
     val settingsFocusCount = gameHubSettingsFocusItemCount(settingsRows)
     val onScreenCloakModeSelected: (ScreenCloakMode) -> Unit by rememberUpdatedState {
         { mode: ScreenCloakMode ->
@@ -467,13 +519,19 @@ internal fun GameHubHomeScreen(
             trustedReceiverId != null &&
             trustedReceiverId == uiState.defaultReceiver.identity.id &&
             uiState.pairingState == PairingState.Trusted
-    val launcherItems = remember(uiState.libraryApps, receiverReady, uiState.azaharStatus.installed) {
-        GameHubHomeMapper.launcherItems(uiState, receiverReady)
-    }
+    val launcherItems =
+        remember(uiState.libraryApps, receiverReady, uiState.azaharStatus.installed) {
+            GameHubHomeMapper.launcherItems(uiState, receiverReady)
+        }
+    val launcherLayout = uiState.appearanceSettings.launcherLayout
     var libraryFilter by remember { mutableStateOf(GameHubLibraryFilter.All) }
     val libraryGridEntries =
         remember(uiState.libraryApps, uiState.libraryAddCandidates, uiState.libraryQuery, libraryFilter) {
             gameHubLibraryGridEntries(uiState, libraryFilter)
+        }
+    val availableProfiles =
+        remember(uiState.defaultReceiver, uiState.deviceProfile, uiState.connectionTestResult) {
+            ConsoleModeProfiles.available(uiState)
         }
     val homeFocus = remember { FocusRequester() }
     val libraryFocus = remember { FocusRequester() }
@@ -485,6 +543,7 @@ internal fun GameHubHomeScreen(
     var focusZone by remember { mutableStateOf(GameHubFocusZone.TopBar) }
     var topBarIndex by remember { mutableIntStateOf(0) }
     var libraryFilterIndex by remember { mutableIntStateOf(0) }
+    var libraryOverflowRequestIndex by remember { mutableStateOf<Int?>(null) }
     var launcherGridInputActive by remember { mutableStateOf(false) }
     var focusedIndex by remember { mutableIntStateOf(0) }
     var homeBarFocused by remember { mutableStateOf(false) }
@@ -532,79 +591,6 @@ internal fun GameHubHomeScreen(
         }
     }
 
-    fun applyGoHome() {
-        homePanel = GameHubHomePanel.Launcher
-        when (mode) {
-            GameHubHomeMode.Portal -> {
-                launcherGridInputActive = false
-                focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
-            }
-
-            GameHubHomeMode.Launcher -> {
-                if (launcherItems.isNotEmpty()) {
-                    focusZone = GameHubFocusZone.Grid
-                    launcherGridInputActive = true
-                    libraryBarFocused = false
-                    screensBarFocused = false
-                    consoleModesBarFocused = false
-                    settingsBarFocused = false
-                    homeBarFocused = false
-                    focusManager.clearFocus()
-                    homeInputFocus.requestFocus()
-                } else {
-                    focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
-                }
-            }
-        }
-    }
-
-    fun openLibraryPanel() {
-        homePanel = GameHubHomePanel.Library
-        launcherGridInputActive = false
-        focusedIndex = 0
-        libraryFilterIndex = gameHubTopBarIndexForFilter(libraryFilter)
-        focusTopBarButton(GAME_HUB_TOP_BAR_LIBRARY)
-    }
-
-    fun openScreensPanel() {
-        homePanel = GameHubHomePanel.Screens
-        launcherGridInputActive = false
-        focusedIndex = 0
-        viewModel.startDiscovery()
-        focusTopBarButton(GAME_HUB_TOP_BAR_SCREENS)
-    }
-
-    fun openConsoleModesPanel() {
-        homePanel = GameHubHomePanel.ConsoleModes
-        launcherGridInputActive = false
-        focusTopBarButton(GAME_HUB_TOP_BAR_CONSOLE_MODES)
-    }
-
-    fun openSettingsPanel() {
-        homePanel = GameHubHomePanel.Settings
-        launcherGridInputActive = false
-        focusedIndex = 0
-        focusTopBarButton(GAME_HUB_TOP_BAR_SETTINGS)
-    }
-
-    fun selectTopBarTab(index: Int) {
-        when (index) {
-            GAME_HUB_TOP_BAR_HOME -> applyGoHome()
-
-            GAME_HUB_TOP_BAR_LIBRARY ->
-                if (homePanel == GameHubHomePanel.Library) applyGoHome() else openLibraryPanel()
-
-            GAME_HUB_TOP_BAR_SCREENS ->
-                if (homePanel == GameHubHomePanel.Screens) applyGoHome() else openScreensPanel()
-
-            GAME_HUB_TOP_BAR_CONSOLE_MODES ->
-                if (homePanel == GameHubHomePanel.ConsoleModes) applyGoHome() else openConsoleModesPanel()
-
-            else ->
-                if (homePanel == GameHubHomePanel.Settings) applyGoHome() else openSettingsPanel()
-        }
-    }
-
     fun activateLibraryFilters() {
         focusZone = GameHubFocusZone.LibraryFilters
         launcherGridInputActive = false
@@ -645,10 +631,118 @@ internal fun GameHubHomeScreen(
         homeInputFocus.requestFocus()
     }
 
-    val availableProfiles =
-        remember(uiState.defaultReceiver, uiState.deviceProfile, uiState.connectionTestResult) {
-            ConsoleModeProfiles.available(uiState)
+    fun applyGoHome() {
+        homePanel = GameHubHomePanel.Launcher
+        when (mode) {
+            GameHubHomeMode.Portal -> {
+                launcherGridInputActive = false
+                focusZone = GameHubFocusZone.Portal
+                portalFocus.requestFocus()
+            }
+
+            GameHubHomeMode.Launcher -> {
+                focusedIndex = 0
+                if (launcherItems.isNotEmpty()) {
+                    activateLauncherGrid()
+                } else {
+                    focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
+                }
+            }
         }
+    }
+
+    fun openLibraryPanel() {
+        homePanel = GameHubHomePanel.Library
+        launcherGridInputActive = false
+        focusedIndex = 0
+        libraryFilterIndex = gameHubTopBarIndexForFilter(libraryFilter)
+        if (libraryGridEntries.isNotEmpty()) {
+            activateLauncherGrid()
+        } else {
+            activateLibraryFilters()
+        }
+    }
+
+    fun openScreensPanel() {
+        homePanel = GameHubHomePanel.Screens
+        launcherGridInputActive = false
+        focusedIndex = 0
+        viewModel.startDiscovery()
+        activateScreensList()
+    }
+
+    fun openConsoleModesPanel() {
+        homePanel = GameHubHomePanel.ConsoleModes
+        launcherGridInputActive = false
+        focusedIndex = gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
+        activateConsoleModesList()
+    }
+
+    fun openSettingsPanel() {
+        homePanel = GameHubHomePanel.Settings
+        launcherGridInputActive = false
+        focusedIndex = 0
+        activateSettingsPanel()
+    }
+
+    fun selectTopBarTab(index: Int) {
+        when (noctLauncherModeDockSelectAction(homePanel, index)) {
+            NoctLauncherModeDockSelectAction.GoHome -> applyGoHome()
+            NoctLauncherModeDockSelectAction.OpenLibrary -> openLibraryPanel()
+            NoctLauncherModeDockSelectAction.OpenScreens -> openScreensPanel()
+            NoctLauncherModeDockSelectAction.OpenConsoleModes -> openConsoleModesPanel()
+            NoctLauncherModeDockSelectAction.OpenSettings -> openSettingsPanel()
+        }
+    }
+
+    /** Move focus from the bottom mode dock into the active panel's primary content. */
+    fun enterContentFromModeDock(): Boolean =
+        when (homePanel) {
+            GameHubHomePanel.Launcher ->
+                when (mode) {
+                    GameHubHomeMode.Portal -> {
+                        focusZone = GameHubFocusZone.Portal
+                        portalFocus.requestFocus()
+                        true
+                    }
+
+                    GameHubHomeMode.Launcher ->
+                        if (launcherItems.isNotEmpty()) {
+                            focusedIndex = 0
+                            activateLauncherGrid()
+                            true
+                        } else {
+                            false
+                        }
+                }
+
+            GameHubHomePanel.Library -> {
+                activateLibraryFilters()
+                true
+            }
+
+            GameHubHomePanel.Screens -> {
+                focusedIndex = 0
+                activateScreensList()
+                true
+            }
+
+            GameHubHomePanel.ConsoleModes -> {
+                focusedIndex = gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
+                activateConsoleModesList()
+                true
+            }
+
+            GameHubHomePanel.Settings -> {
+                activateSettingsPanel()
+                true
+            }
+        }
+
+    fun focusModeDockForCurrentPanel() {
+        focusTopBarButton(gameHubTopBarIndexForPanel(homePanel))
+    }
+
     fun onPrimaryPortal() {
         when (portal.primaryAction) {
             GameHubTileActionKind.Pair, GameHubTileActionKind.ConnectFirst ->
@@ -727,10 +821,8 @@ internal fun GameHubHomeScreen(
         if (openSettingsPanelOnStart) {
             openSettingsPanel()
             if (focusSystemStatusOnStart) {
-                gameHubSettingsFocusIndexForLabel(settingsRows, "System Status")?.let { index ->
-                    focusedIndex = index
-                    activateSettingsPanel()
-                }
+                systemStatusExpanded = true
+                activateSettingsPanel()
             }
         }
     }
@@ -784,7 +876,7 @@ internal fun GameHubHomeScreen(
         ) {
             val viewport = remember(maxWidth, maxHeight) { GameHubViewport(maxWidth, maxHeight) }
             val gridLayout =
-                remember(maxWidth, maxHeight, launcherItems.size, libraryGridEntries.size, availableProfiles.size, homePanel) {
+                remember(maxWidth, maxHeight, launcherItems.size, libraryGridEntries.size, availableProfiles.size, homePanel, launcherLayout) {
                     val count =
                         when (homePanel) {
                             GameHubHomePanel.Library -> libraryGridEntries.size.coerceAtLeast(1)
@@ -793,7 +885,15 @@ internal fun GameHubHomeScreen(
                             GameHubHomePanel.Settings -> 1
                             GameHubHomePanel.Launcher -> launcherItems.size.coerceAtLeast(1)
                         }
-                    GameHubViewport.launcherGridLayout(maxWidth, maxHeight, count)
+                    when (homePanel) {
+                        GameHubHomePanel.Launcher ->
+                            GameHubViewport.connectedHomeGridLayout(maxWidth, maxHeight)
+
+                        GameHubHomePanel.Library ->
+                            GameHubViewport.connectedLibraryGridLayout(maxWidth, maxHeight)
+
+                        else -> GameHubViewport.launcherGridLayout(maxWidth, maxHeight, count)
+                    }
                 }
             Column(
                 modifier =
@@ -912,54 +1012,51 @@ internal fun GameHubHomeScreen(
                                     }
                                 }
 
+                                event.gameHubIsOptionsDown() -> {
+                                    when {
+                                        launcherGridActive && focusZone == GameHubFocusZone.Grid -> {
+                                            launcherItems.getOrNull(focusedIndex)?.let { item ->
+                                                tileMenu = GameHubTileMenu.Overflow(item)
+                                            }
+                                            true
+                                        }
+
+                                        libraryGridActive && focusZone == GameHubFocusZone.Grid -> {
+                                            libraryOverflowRequestIndex = focusedIndex
+                                            true
+                                        }
+
+                                        else -> false
+                                    }
+                                }
+
+                                event.gameHubIsFavouriteDown() -> {
+                                    when {
+                                        libraryGridActive && focusZone == GameHubFocusZone.Grid -> {
+                                            (libraryGridEntries.getOrNull(focusedIndex) as? GameHubLibraryGridEntry.App)?.let {
+                                                viewModel.toggleFavourite(it.item.model)
+                                            }
+                                            true
+                                        }
+
+                                        launcherGridActive && focusZone == GameHubFocusZone.Grid -> {
+                                            launcherItems.getOrNull(focusedIndex)?.let { item ->
+                                                if (!item.isAzahar) {
+                                                    gameHubPackageName(item, uiState)
+                                                        ?.let(viewModel::libraryAppForPackage)
+                                                        ?.let(viewModel::toggleFavourite)
+                                                }
+                                            }
+                                            true
+                                        }
+
+                                        else -> false
+                                    }
+                                }
+
                                 event.key == Key.DirectionDown -> {
                                     when (focusZone) {
-                                        GameHubFocusZone.TopBar ->
-                                            when {
-                                                homePanel == GameHubHomePanel.Launcher -> {
-                                                    when (mode) {
-                                                        GameHubHomeMode.Portal -> {
-                                                            focusZone = GameHubFocusZone.Portal
-                                                            portalFocus.requestFocus()
-                                                            true
-                                                        }
-
-                                                        GameHubHomeMode.Launcher ->
-                                                            if (gridHasTiles) {
-                                                                focusedIndex = 0
-                                                                activateLauncherGrid()
-                                                                true
-                                                            } else {
-                                                                false
-                                                            }
-                                                    }
-                                                }
-
-                                                homePanel == GameHubHomePanel.Library -> {
-                                                    activateLibraryFilters()
-                                                    true
-                                                }
-
-                                                homePanel == GameHubHomePanel.Screens -> {
-                                                    focusedIndex = 0
-                                                    activateScreensList()
-                                                    true
-                                                }
-
-                                                homePanel == GameHubHomePanel.ConsoleModes -> {
-                                                    focusedIndex =
-                                                        gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
-                                                    activateConsoleModesList()
-                                                    true
-                                                }
-
-                                                homePanel == GameHubHomePanel.Settings -> {
-                                                    activateSettingsPanel()
-                                                    true
-                                                }
-
-                                                else -> false
-                                            }
+                                        GameHubFocusZone.TopBar -> false
 
                                         GameHubFocusZone.LibraryFilters ->
                                             if (libraryGridEntries.isNotEmpty()) {
@@ -967,35 +1064,52 @@ internal fun GameHubHomeScreen(
                                                 activateLauncherGrid()
                                                 true
                                             } else {
-                                                false
+                                                focusTopBarButton(GAME_HUB_TOP_BAR_LIBRARY)
+                                                true
                                             }
 
                                         GameHubFocusZone.ScreensList ->
                                             if (gridHasTiles) {
+                                                val previous = focusedIndex
                                                 focusedIndex = gameHubScreensMoveDown(focusedIndex, gridCount)
+                                                if (focusedIndex == previous) {
+                                                    focusTopBarButton(GAME_HUB_TOP_BAR_SCREENS)
+                                                }
                                                 true
                                             } else {
-                                                false
+                                                focusTopBarButton(GAME_HUB_TOP_BAR_SCREENS)
+                                                true
                                             }
 
                                         GameHubFocusZone.ConsoleModesList ->
                                             if (gridHasTiles) {
+                                                val previous = focusedIndex
                                                 focusedIndex = gameHubConsoleModesMoveDown(focusedIndex, gridCount)
+                                                if (focusedIndex == previous) {
+                                                    focusTopBarButton(GAME_HUB_TOP_BAR_CONSOLE_MODES)
+                                                }
                                                 true
                                             } else {
-                                                false
+                                                focusTopBarButton(GAME_HUB_TOP_BAR_CONSOLE_MODES)
+                                                true
                                             }
 
                                         GameHubFocusZone.SettingsPanel ->
                                             if (gridHasTiles) {
+                                                val previous = focusedIndex
                                                 focusedIndex = gameHubSettingsMoveDown(focusedIndex, gridCount)
+                                                if (focusedIndex == previous) {
+                                                    focusTopBarButton(GAME_HUB_TOP_BAR_SETTINGS)
+                                                }
                                                 true
                                             } else {
-                                                false
+                                                focusTopBarButton(GAME_HUB_TOP_BAR_SETTINGS)
+                                                true
                                             }
 
                                         GameHubFocusZone.Grid ->
                                             if (gridHasTiles) {
+                                                val previous = focusedIndex
                                                 focusedIndex =
                                                     when {
                                                         screensListActive ->
@@ -1008,14 +1122,40 @@ internal fun GameHubHomeScreen(
                                                             gameHubSettingsMoveDown(focusedIndex, gridCount)
 
                                                         else ->
-                                                            gameHubGridMoveDown(focusedIndex, gridLayout.columns, gridCount)
+                                                            when {
+                                                                launcherGridActive ->
+                                                                    if (launcherLayout == GameHubLauncherLayout.Cover) {
+                                                                        focusedIndex
+                                                                    } else {
+                                                                        gameHubLauncherGridMoveDown(
+                                                                            focusedIndex,
+                                                                            gridCount,
+                                                                        )
+                                                                    }
+
+                                                                libraryGridActive ->
+                                                                    gameHubLibraryGridMoveDown(focusedIndex, gridCount)
+
+                                                                else ->
+                                                                    gameHubGridMoveDown(
+                                                                        focusedIndex,
+                                                                        gridLayout.columns,
+                                                                        gridCount,
+                                                                    )
+                                                            }
                                                     }
+                                                if (focusedIndex == previous) {
+                                                    focusModeDockForCurrentPanel()
+                                                }
                                                 true
                                             } else {
                                                 false
                                             }
 
-                                        GameHubFocusZone.Portal -> false
+                                        GameHubFocusZone.Portal -> {
+                                            focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
+                                            true
+                                        }
                                     }
                                 }
 
@@ -1028,8 +1168,7 @@ internal fun GameHubHomeScreen(
                                         ->
                                             if (screensListActive) {
                                                 if (focusedIndex == 0) {
-                                                    focusTopBarButton(GAME_HUB_TOP_BAR_SCREENS)
-                                                    true
+                                                    false
                                                 } else {
                                                     focusedIndex = gameHubScreensMoveUp(focusedIndex, gridCount)
                                                     true
@@ -1038,26 +1177,44 @@ internal fun GameHubHomeScreen(
                                                 val consoleModesTopIndex =
                                                     gameHubConsoleModesPreferenceStartIndex(availableProfiles.size)
                                                 if (focusedIndex <= consoleModesTopIndex) {
-                                                    focusTopBarButton(GAME_HUB_TOP_BAR_CONSOLE_MODES)
-                                                    true
+                                                    false
                                                 } else {
                                                     focusedIndex = gameHubConsoleModesMoveUp(focusedIndex, gridCount)
                                                     true
                                                 }
                                             } else if (settingsPanelActive) {
                                                 if (focusedIndex == 0) {
-                                                    focusTopBarButton(GAME_HUB_TOP_BAR_SETTINGS)
-                                                    true
+                                                    false
                                                 } else {
                                                     focusedIndex = gameHubSettingsMoveUp(focusedIndex, gridCount)
                                                     true
                                                 }
+                                            } else if (launcherGridActive) {
+                                                if (launcherLayout == GameHubLauncherLayout.Cover ||
+                                                    gameHubLauncherGridLocalRow(focusedIndex) == 0
+                                                ) {
+                                                    false
+                                                } else {
+                                                    focusedIndex = gameHubLauncherGridMoveUp(focusedIndex)
+                                                    true
+                                                }
+                                            } else if (libraryGridActive) {
+                                                if (gameHubLibraryGridLocalRow(focusedIndex) == 0) {
+                                                    activateLibraryFilters()
+                                                    true
+                                                } else {
+                                                    focusedIndex = gameHubLibraryGridMoveUp(focusedIndex)
+                                                    true
+                                                }
                                             } else if (focusedIndex / gridLayout.columns == 0) {
                                                 when (homePanel) {
-                                                    GameHubHomePanel.Library -> activateLibraryFilters()
-                                                    else -> focusTopBarButton(gameHubTopBarIndexForPanel(homePanel))
+                                                    GameHubHomePanel.Library -> {
+                                                        activateLibraryFilters()
+                                                        true
+                                                    }
+
+                                                    else -> false
                                                 }
-                                                true
                                             } else if (gridHasTiles) {
                                                 focusedIndex =
                                                     gameHubGridMoveUp(focusedIndex, gridLayout.columns, gridCount)
@@ -1066,17 +1223,11 @@ internal fun GameHubHomeScreen(
                                                 false
                                             }
 
-                                        GameHubFocusZone.LibraryFilters -> {
-                                            focusTopBarButton(GAME_HUB_TOP_BAR_LIBRARY)
-                                            true
-                                        }
+                                        GameHubFocusZone.LibraryFilters -> false
 
-                                        GameHubFocusZone.Portal -> {
-                                            focusTopBarButton(GAME_HUB_TOP_BAR_HOME)
-                                            true
-                                        }
+                                        GameHubFocusZone.Portal -> false
 
-                                        GameHubFocusZone.TopBar -> false
+                                        GameHubFocusZone.TopBar -> enterContentFromModeDock()
                                     }
                                 }
 
@@ -1126,7 +1277,24 @@ internal fun GameHubHomeScreen(
                                         GameHubFocusZone.Grid ->
                                             if (gridHasTiles && !screensListActive && !consoleModesListActive && !settingsPanelActive) {
                                                 focusedIndex =
-                                                    gameHubGridMoveRight(focusedIndex, gridLayout.columns, gridCount)
+                                                    when {
+                                                        launcherGridActive ->
+                                                            if (launcherLayout == GameHubLauncherLayout.Cover) {
+                                                                gameHubLauncherCoverMoveRight(focusedIndex, gridCount)
+                                                            } else {
+                                                                gameHubLauncherGridMoveRight(focusedIndex, gridCount)
+                                                            }
+
+                                                        libraryGridActive ->
+                                                            gameHubLibraryGridMoveRight(focusedIndex, gridCount)
+
+                                                        else ->
+                                                            gameHubGridMoveRight(
+                                                                focusedIndex,
+                                                                gridLayout.columns,
+                                                                gridCount,
+                                                            )
+                                                    }
                                                 true
                                             } else {
                                                 false
@@ -1180,7 +1348,24 @@ internal fun GameHubHomeScreen(
                                         GameHubFocusZone.Grid ->
                                             if (gridHasTiles && !screensListActive && !consoleModesListActive && !settingsPanelActive) {
                                                 focusedIndex =
-                                                    gameHubGridMoveLeft(focusedIndex, gridLayout.columns, gridCount)
+                                                    when {
+                                                        launcherGridActive ->
+                                                            if (launcherLayout == GameHubLauncherLayout.Cover) {
+                                                                gameHubLauncherCoverMoveLeft(focusedIndex)
+                                                            } else {
+                                                                gameHubLauncherGridMoveLeft(focusedIndex)
+                                                            }
+
+                                                        libraryGridActive ->
+                                                            gameHubLibraryGridMoveLeft(focusedIndex)
+
+                                                        else ->
+                                                            gameHubGridMoveLeft(
+                                                                focusedIndex,
+                                                                gridLayout.columns,
+                                                                gridCount,
+                                                            )
+                                                    }
                                                 true
                                             } else {
                                                 false
@@ -1196,61 +1381,13 @@ internal fun GameHubHomeScreen(
                     },
                 verticalArrangement = Arrangement.spacedBy(viewport.sectionGap),
             ) {
-                GameHubTopBar(
-                    uiState = uiState,
-                    mode = mode,
-                    portalStatus = portal.statusPill,
-                    homeFocus = homeFocus,
-                    libraryFocus = libraryFocus,
-                    screensFocus = screensFocus,
-                    consoleModesFocus = consoleModesFocus,
-                    settingsFocus = settingsFocus,
-                    iconButtonSize = viewport.settingsCogSize,
-                    reducedMotion = reducedMotion,
-                    topBarIndex = topBarIndex,
-                    focusZone = focusZone,
-                    homePanel = homePanel,
-                    onHomeFocusChanged = {
-                        homeBarFocused = it
-                        if (it) {
-                            focusZone = GameHubFocusZone.TopBar
-                            topBarIndex = GAME_HUB_TOP_BAR_HOME
-                        }
-                    },
-                    onLibraryFocusChanged = {
-                        libraryBarFocused = it
-                        if (it) {
-                            focusZone = GameHubFocusZone.TopBar
-                            topBarIndex = GAME_HUB_TOP_BAR_LIBRARY
-                        }
-                    },
-                    onScreensFocusChanged = {
-                        screensBarFocused = it
-                        if (it) {
-                            focusZone = GameHubFocusZone.TopBar
-                            topBarIndex = GAME_HUB_TOP_BAR_SCREENS
-                        }
-                    },
-                    onConsoleModesFocusChanged = {
-                        consoleModesBarFocused = it
-                        if (it) {
-                            focusZone = GameHubFocusZone.TopBar
-                            topBarIndex = GAME_HUB_TOP_BAR_CONSOLE_MODES
-                        }
-                    },
-                    onSettingsFocusChanged = {
-                        settingsBarFocused = it
-                        if (it) {
-                            focusZone = GameHubFocusZone.TopBar
-                            topBarIndex = GAME_HUB_TOP_BAR_SETTINGS
-                        }
-                    },
-                    onGoHome = { selectTopBarTab(GAME_HUB_TOP_BAR_HOME) },
-                    onOpenLibrary = { selectTopBarTab(GAME_HUB_TOP_BAR_LIBRARY) },
-                    onOpenScreens = { selectTopBarTab(GAME_HUB_TOP_BAR_SCREENS) },
-                    onOpenConsoleModes = { selectTopBarTab(GAME_HUB_TOP_BAR_CONSOLE_MODES) },
-                    onOpenSettings = { selectTopBarTab(GAME_HUB_TOP_BAR_SETTINGS) },
-                )
+                if (!receiverReady) {
+                    GameHubReceiverStatusHeader(
+                        uiState = uiState,
+                        mode = mode,
+                        portalStatus = portal.statusPill,
+                    )
+                }
                 Box(
                     modifier =
                     Modifier
@@ -1277,12 +1414,15 @@ internal fun GameHubHomeScreen(
                                     filtersFocused = focusZone == GameHubFocusZone.LibraryFilters,
                                     gridInputActive = focusZone == GameHubFocusZone.Grid,
                                     focusedIndex = focusedIndex,
+                                    overflowRequestIndex = libraryOverflowRequestIndex,
+                                    onOverflowRequestConsumed = { libraryOverflowRequestIndex = null },
                                     onFilterChange = { libraryFilter = it },
                                     onFocusedIndexChange = { focusedIndex = it },
                                     onRefresh = { viewModel.refreshLibrary(clearIconCache = true) },
                                     onQueryChange = viewModel::updateLibraryQuery,
                                     onToggleFavourite = viewModel::toggleFavourite,
                                     onAddApp = viewModel::addLibraryApp,
+                                    onRemoveApp = viewModel::removeLibraryApp,
                                     onLaunchApp = viewModel::launchOnly,
                                 )
 
@@ -1293,6 +1433,9 @@ internal fun GameHubHomeScreen(
                                     focusedIndex = focusedIndex,
                                     listInputActive = focusZone == GameHubFocusZone.ScreensList,
                                     reducedMotion = reducedMotion,
+                                    connectedScreenPill =
+                                    uiState.defaultReceiver?.let(GameHubHomeMapper::screenReadyPill)
+                                        .takeIf { receiverReady },
                                     onSearchAgain = viewModel::startDiscovery,
                                 )
 
@@ -1313,6 +1456,8 @@ internal fun GameHubHomeScreen(
                                     focusedIndex = focusedIndex,
                                     listInputActive = focusZone == GameHubFocusZone.SettingsPanel,
                                     reducedMotion = reducedMotion,
+                                    systemStatusExpanded = systemStatusExpanded,
+                                    onSystemStatusExpandedChange = { systemStatusExpanded = it },
                                     onOpenDiagnostics = onOpenDiagnostics,
                                 )
 
@@ -1333,11 +1478,13 @@ internal fun GameHubHomeScreen(
                                     GameHubHomeMode.Launcher ->
                                         GameHubLauncherStage(
                                             items = launcherItems,
+                                            layout = launcherLayout,
                                             libraryApps = uiState.libraryApps,
                                             accent = accent,
                                             reducedMotion = reducedMotion,
                                             focusedIndex = focusedIndex,
                                             gridInputActive = focusZone == GameHubFocusZone.Grid,
+                                            onFocusedIndexChange = { focusedIndex = it },
                                             onTileActivate = onTileActivate,
                                             onTileLongPress = { tileMenu = GameHubTileMenu.Overflow(it) },
                                         )
@@ -1345,7 +1492,97 @@ internal fun GameHubHomeScreen(
                         }
                     }
                 }
-                GameHubPrivacyFooter()
+                Box(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = viewport.bottomChromeMinHeight)
+                        .padding(top = 4.dp),
+                ) {
+                    when (homePanel) {
+                        GameHubHomePanel.Launcher ->
+                            GameHubHintBar(
+                                mode = mode,
+                                homePanel = homePanel,
+                                focusZone = focusZone,
+                                gridInputActive = launcherGridInputActive,
+                                portalPrimaryLabel = portal.primaryLabel,
+                                focusedItem = launcherItems.getOrNull(focusedIndex),
+                                libraryEntry = null,
+                                modifier = Modifier.align(Alignment.CenterStart),
+                            )
+
+                        GameHubHomePanel.Library ->
+                            GameHubHintBar(
+                                mode = mode,
+                                homePanel = homePanel,
+                                focusZone = focusZone,
+                                gridInputActive = focusZone == GameHubFocusZone.Grid,
+                                portalPrimaryLabel = portal.primaryLabel,
+                                focusedItem = null,
+                                libraryEntry = libraryGridEntries.getOrNull(focusedIndex),
+                                modifier = Modifier.align(Alignment.CenterStart),
+                            )
+
+                        else -> Unit
+                    }
+                    GameHubLauncherModeDockBar(
+                        homeFocus = homeFocus,
+                        libraryFocus = libraryFocus,
+                        screensFocus = screensFocus,
+                        consoleModesFocus = consoleModesFocus,
+                        settingsFocus = settingsFocus,
+                        iconButtonSize = viewport.settingsCogSize,
+                        reducedMotion = reducedMotion,
+                        topBarIndex = topBarIndex,
+                        focusZone = focusZone,
+                        homePanel = homePanel,
+                        modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .padding(bottom = 14.dp),
+                        onHomeFocusChanged = {
+                            homeBarFocused = it
+                            if (it) {
+                                focusZone = GameHubFocusZone.TopBar
+                                topBarIndex = GAME_HUB_TOP_BAR_HOME
+                            }
+                        },
+                        onLibraryFocusChanged = {
+                            libraryBarFocused = it
+                            if (it) {
+                                focusZone = GameHubFocusZone.TopBar
+                                topBarIndex = GAME_HUB_TOP_BAR_LIBRARY
+                            }
+                        },
+                        onScreensFocusChanged = {
+                            screensBarFocused = it
+                            if (it) {
+                                focusZone = GameHubFocusZone.TopBar
+                                topBarIndex = GAME_HUB_TOP_BAR_SCREENS
+                            }
+                        },
+                        onConsoleModesFocusChanged = {
+                            consoleModesBarFocused = it
+                            if (it) {
+                                focusZone = GameHubFocusZone.TopBar
+                                topBarIndex = GAME_HUB_TOP_BAR_CONSOLE_MODES
+                            }
+                        },
+                        onSettingsFocusChanged = {
+                            settingsBarFocused = it
+                            if (it) {
+                                focusZone = GameHubFocusZone.TopBar
+                                topBarIndex = GAME_HUB_TOP_BAR_SETTINGS
+                            }
+                        },
+                        onGoHome = { selectTopBarTab(GAME_HUB_TOP_BAR_HOME) },
+                        onOpenLibrary = { selectTopBarTab(GAME_HUB_TOP_BAR_LIBRARY) },
+                        onOpenScreens = { selectTopBarTab(GAME_HUB_TOP_BAR_SCREENS) },
+                        onOpenConsoleModes = { selectTopBarTab(GAME_HUB_TOP_BAR_CONSOLE_MODES) },
+                        onOpenSettings = { selectTopBarTab(GAME_HUB_TOP_BAR_SETTINGS) },
+                    )
+                }
             }
             when (val menu = tileMenu) {
                 is GameHubTileMenu.Overflow -> {
@@ -1420,7 +1657,7 @@ private fun gameHubPackageName(item: GameHubLauncherItem, uiState: SenderUiState
 }
 
 @Composable
-private fun GameHubGlassOverlay(
+internal fun GameHubGlassOverlay(
     accent: Color,
     reducedMotion: Boolean,
     onDismiss: () -> Unit,
@@ -1508,7 +1745,7 @@ private fun GameHubTileOverflowMenu(
 }
 
 @Composable
-private fun GameHubOverflowMenuRow(label: String, trailing: String, onClick: () -> Unit, trailingColor: Color = NoctColors.TextSecondary) {
+internal fun GameHubOverflowMenuRow(label: String, trailing: String, onClick: () -> Unit, trailingColor: Color = NoctColors.TextSecondary) {
     Row(
         modifier =
         Modifier
@@ -1702,30 +1939,198 @@ private fun GameHubAzaharModeDialog(accent: Color, reducedMotion: Boolean, onDis
 }
 
 @Composable
-private fun GameHubPrivacyFooter(modifier: Modifier = Modifier) {
-    val accent = LocalNoctAccent.current
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Surface(
-            color = Color(0x55101824),
-            shape = RoundedCornerShape(50),
-            border = androidx.compose.foundation.BorderStroke(1.dp, NoctColors.GlassBorder.copy(alpha = 0.65f)),
+private fun GameHubHintBar(
+    mode: GameHubHomeMode,
+    homePanel: GameHubHomePanel,
+    focusZone: GameHubFocusZone,
+    gridInputActive: Boolean,
+    portalPrimaryLabel: String,
+    focusedItem: GameHubLauncherItem?,
+    libraryEntry: GameHubLibraryGridEntry?,
+    modifier: Modifier = Modifier,
+) {
+    val hints =
+        remember(mode, homePanel, focusZone, gridInputActive, portalPrimaryLabel, focusedItem, libraryEntry) {
+            when {
+                homePanel == GameHubHomePanel.Library &&
+                    focusZone == GameHubFocusZone.Grid &&
+                    gridInputActive ->
+                    when (val entry = libraryEntry) {
+                        is GameHubLibraryGridEntry.App ->
+                            buildList {
+                                add(GameHubHintButton.Accept to "Launch")
+                                add(GameHubHintButton.Back to "Back")
+                                add(GameHubHintButton.Options to "Options")
+                                add(
+                                    GameHubHintButton.Favourite to
+                                        if (entry.item.model.isFavourite) "Unfavourite" else "Favourite",
+                                )
+                            }
+
+                        is GameHubLibraryGridEntry.AddCandidate ->
+                            listOf(
+                                GameHubHintButton.Accept to "Add",
+                                GameHubHintButton.Back to "Back",
+                                GameHubHintButton.Up to "Filters",
+                            )
+
+                        else -> listOf(GameHubHintButton.Back to "Back", GameHubHintButton.Up to "Filters")
+                    }
+
+                homePanel == GameHubHomePanel.Library && focusZone == GameHubFocusZone.LibraryFilters ->
+                    listOf(
+                        GameHubHintButton.Accept to "Select",
+                        GameHubHintButton.Back to "Back",
+                        GameHubHintButton.Down to "Apps",
+                    )
+
+                mode == GameHubHomeMode.Launcher &&
+                    homePanel == GameHubHomePanel.Launcher &&
+                    focusZone == GameHubFocusZone.Grid &&
+                    gridInputActive &&
+                    focusedItem != null ->
+                    buildList {
+                        add(GameHubHintButton.Accept to "Launch")
+                        add(GameHubHintButton.Back to "Back")
+                        add(GameHubHintButton.Options to "Options")
+                        if (!focusedItem.isAzahar) {
+                            add(
+                                GameHubHintButton.Favourite to
+                                    if (focusedItem.isFavourite) "Unfavourite" else "Favourite",
+                            )
+                        }
+                    }
+
+                mode == GameHubHomeMode.Portal && focusZone == GameHubFocusZone.Portal ->
+                    listOf(
+                        GameHubHintButton.Accept to portalPrimaryLabel,
+                        GameHubHintButton.Back to "Back",
+                        GameHubHintButton.Down to "Menu",
+                    )
+
+                mode == GameHubHomeMode.Launcher && focusZone == GameHubFocusZone.TopBar ->
+                    listOf(
+                        GameHubHintButton.Accept to "Open",
+                        GameHubHintButton.Back to "Back",
+                        GameHubHintButton.Up to "Apps",
+                    )
+
+                mode == GameHubHomeMode.Launcher ->
+                    listOf(
+                        GameHubHintButton.Accept to "Launch",
+                        GameHubHintButton.Back to "Back",
+                        GameHubHintButton.Down to "Apps",
+                    )
+
+                else -> listOf(GameHubHintButton.Up to "Menu", GameHubHintButton.Back to "Back")
+            }
+        }
+    val (leftHints, rightHints) =
+        remember(hints) {
+            hints.partition { (button, _) ->
+                when (button) {
+                    GameHubHintButton.Accept,
+                    GameHubHintButton.Back,
+                    GameHubHintButton.Up,
+                    GameHubHintButton.Down,
+                    -> true
+
+                    GameHubHintButton.Options,
+                    GameHubHintButton.Favourite,
+                    -> false
+                }
+            }
+        }
+    Row(
+        modifier =
+        modifier.widthIn(min = if (rightHints.isNotEmpty()) 248.dp else 0.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "Local network only  ·  No accounts  ·  No cloud",
-                color = NoctColors.TextSecondary.copy(alpha = 0.9f),
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-            )
+            leftHints.forEach { (button, action) ->
+                GameHubHintEntry(button = button, action = action)
+            }
+        }
+        if (leftHints.isNotEmpty() && rightHints.isNotEmpty()) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            rightHints.forEach { (button, action) ->
+                GameHubHintEntry(button = button, action = action)
+            }
         }
     }
 }
 
 @Composable
-private fun GameHubTopBar(
+private fun GameHubHintEntry(button: GameHubHintButton, action: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        GameHubHintButtonLabel(button = button)
+        Text(
+            action,
+            color = NoctColors.TextSecondary.copy(alpha = 0.92f),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun GameHubHintButtonLabel(button: GameHubHintButton) {
+    if (button == GameHubHintButton.Up || button == GameHubHintButton.Down) {
+        Text(
+            button.displayLabel(),
+            color = NoctColors.TextSecondary.copy(alpha = 0.92f),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+    } else {
+        val (faceColor, _) = gameHubControllerButtonColors(button.displayLabel())
+        Text(
+            text = button.displayLabel(),
+            color = faceColor,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.ExtraBold,
+        )
+    }
+}
+
+@Composable
+private fun GameHubReceiverStatusHeader(
     uiState: SenderUiState,
     mode: GameHubHomeMode,
     portalStatus: String,
+    modifier: Modifier = Modifier,
+) {
+    val accent = LocalNoctAccent.current
+    val pillText =
+        when (mode) {
+            GameHubHomeMode.Launcher ->
+                uiState.defaultReceiver?.let(GameHubHomeMapper::screenReadyPill)
+                    ?: portalStatus
+
+            GameHubHomeMode.Portal -> portalStatus
+        }
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        GameHubReceiverPill(text = pillText, accent = accent)
+    }
+}
+
+@Composable
+private fun GameHubLauncherModeDockBar(
     homeFocus: FocusRequester,
     libraryFocus: FocusRequester,
     screensFocus: FocusRequester,
@@ -1736,6 +2141,7 @@ private fun GameHubTopBar(
     topBarIndex: Int,
     focusZone: GameHubFocusZone,
     homePanel: GameHubHomePanel,
+    modifier: Modifier = Modifier,
     onHomeFocusChanged: (Boolean) -> Unit,
     onLibraryFocusChanged: (Boolean) -> Unit,
     onScreensFocusChanged: (Boolean) -> Unit,
@@ -1748,116 +2154,47 @@ private fun GameHubTopBar(
     onOpenSettings: () -> Unit,
 ) {
     val topBarFocused = focusZone == GameHubFocusZone.TopBar
-    val accent = LocalNoctAccent.current
-    val pillText =
-        when (mode) {
-            GameHubHomeMode.Launcher ->
-                uiState.defaultReceiver?.let(GameHubHomeMapper::screenReadyPill)
-                    ?: portalStatus
-
-            GameHubHomeMode.Portal -> portalStatus
-        }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GameHubReceiverPill(text = pillText, accent = accent)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            GameHubHomeButton(
-                onClick = onGoHome,
-                buttonSize = iconButtonSize,
-                reducedMotion = reducedMotion,
-                selected =
-                gameHubTopBarTabSelected(
-                    GAME_HUB_TOP_BAR_HOME,
-                    topBarFocused,
-                    topBarIndex,
-                    homePanel,
-                ),
-                modifier =
-                Modifier
-                    .focusRequester(homeFocus)
-                    .focusable(topBarFocused),
-                onFocusChanged = onHomeFocusChanged,
-            )
-            GameHubLibraryButton(
-                onClick = onOpenLibrary,
-                buttonSize = iconButtonSize,
-                reducedMotion = reducedMotion,
-                selected =
-                gameHubTopBarTabSelected(
-                    GAME_HUB_TOP_BAR_LIBRARY,
-                    topBarFocused,
-                    topBarIndex,
-                    homePanel,
-                ),
-                modifier =
-                Modifier
-                    .focusRequester(libraryFocus)
-                    .focusable(topBarFocused),
-                onFocusChanged = onLibraryFocusChanged,
-            )
-            GameHubScreensButton(
-                onClick = onOpenScreens,
-                buttonSize = iconButtonSize,
-                reducedMotion = reducedMotion,
-                selected =
-                gameHubTopBarTabSelected(
-                    GAME_HUB_TOP_BAR_SCREENS,
-                    topBarFocused,
-                    topBarIndex,
-                    homePanel,
-                ),
-                modifier =
-                Modifier
-                    .focusRequester(screensFocus)
-                    .focusable(topBarFocused),
-                onFocusChanged = onScreensFocusChanged,
-            )
-            GameHubConsoleModesButton(
-                onClick = onOpenConsoleModes,
-                buttonSize = iconButtonSize,
-                reducedMotion = reducedMotion,
-                selected =
-                gameHubTopBarTabSelected(
-                    GAME_HUB_TOP_BAR_CONSOLE_MODES,
-                    topBarFocused,
-                    topBarIndex,
-                    homePanel,
-                ),
-                modifier =
-                Modifier
-                    .focusRequester(consoleModesFocus)
-                    .focusable(topBarFocused),
-                onFocusChanged = onConsoleModesFocusChanged,
-            )
-            GameHubSettingsCog(
-                onClick = onOpenSettings,
-                cogSize = iconButtonSize,
-                reducedMotion = reducedMotion,
-                selected =
-                gameHubTopBarTabSelected(
-                    GAME_HUB_TOP_BAR_SETTINGS,
-                    topBarFocused,
-                    topBarIndex,
-                    homePanel,
-                ),
-                modifier =
-                Modifier
-                    .focusRequester(settingsFocus)
-                    .focusable(topBarFocused),
-                onFocusChanged = onSettingsFocusChanged,
-            )
-        }
-    }
+    NoctLauncherModeDock(
+        modes = NoctLauncherModeDockDefaults.modes,
+        selectedMode = homePanel,
+        focusedIndex = topBarIndex,
+        dockFocused = topBarFocused,
+        buttonSize = iconButtonSize,
+        reducedMotion = reducedMotion,
+        layout = NoctLauncherModeDockLayout.Horizontal,
+        modifier = modifier,
+        focusRequesters =
+        listOf(
+            homeFocus,
+            libraryFocus,
+            screensFocus,
+            consoleModesFocus,
+            settingsFocus,
+        ),
+        onModeSelected = { index ->
+            when (index) {
+                GAME_HUB_TOP_BAR_HOME -> onGoHome()
+                GAME_HUB_TOP_BAR_LIBRARY -> onOpenLibrary()
+                GAME_HUB_TOP_BAR_SCREENS -> onOpenScreens()
+                GAME_HUB_TOP_BAR_CONSOLE_MODES -> onOpenConsoleModes()
+                GAME_HUB_TOP_BAR_SETTINGS -> onOpenSettings()
+                else -> Unit
+            }
+        },
+        onFocusChanged = { index, focused ->
+            when (index) {
+                GAME_HUB_TOP_BAR_HOME -> onHomeFocusChanged(focused)
+                GAME_HUB_TOP_BAR_LIBRARY -> onLibraryFocusChanged(focused)
+                GAME_HUB_TOP_BAR_SCREENS -> onScreensFocusChanged(focused)
+                GAME_HUB_TOP_BAR_CONSOLE_MODES -> onConsoleModesFocusChanged(focused)
+                GAME_HUB_TOP_BAR_SETTINGS -> onSettingsFocusChanged(focused)
+            }
+        },
+    )
 }
 
 @Composable
-private fun GameHubReceiverPill(text: String, accent: Color, modifier: Modifier = Modifier) {
+internal fun GameHubReceiverPill(text: String, accent: Color, modifier: Modifier = Modifier) {
     val gradientPhase = LocalGameHubGradientPhase.current
     val shape = RoundedCornerShape(50)
     val fillColors =
@@ -1912,326 +2249,6 @@ private fun GameHubReceiverPill(text: String, accent: Color, modifier: Modifier 
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
-    }
-}
-
-private fun gameHubTopBarIconColor(ringActive: Boolean): Color = NoctColors.TextPrimary.copy(alpha = if (ringActive) 1f else 0.9f)
-
-private fun gameHubTopBarIconStroke(): Float = 2.9f
-
-private fun gameHubTopBarRingStroke(selected: Boolean): Float = if (selected) 4f else 3f
-
-@Composable
-private fun GameHubHomeButton(
-    onClick: () -> Unit,
-    buttonSize: Dp = 46.dp,
-    reducedMotion: Boolean = false,
-    selected: Boolean = false,
-    modifier: Modifier = Modifier,
-    onFocusChanged: (Boolean) -> Unit = {},
-) {
-    val accent = LocalNoctAccent.current
-    val ringActive = selected
-    val scale by animateFloatAsState(
-        if (ringActive) 1.06f else 1f,
-        animationSpec = tween(280, easing = FastOutSlowInEasing),
-        label = "home-scale",
-    )
-    val iconSize = buttonSize * 0.54f
-    Box(
-        modifier =
-        modifier
-            .scale(scale)
-            .size(buttonSize)
-            .clip(CircleShape)
-            .gameHubFocusRing(
-                CircleShape,
-                accent,
-                focused = ringActive,
-                strokeDp = gameHubTopBarRingStroke(selected),
-                idleBorderDp = 2.dp,
-                reducedMotion = reducedMotion,
-            )
-            .gameHubActivateOnAccept(onClick)
-            .clickable(role = Role.Button, onClick = onClick)
-            .onFocusChanged { onFocusChanged(it.isFocused) }
-            .semantics {
-                role = Role.Button
-                contentDescription = "Home"
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.size(iconSize)) {
-            val color = gameHubTopBarIconColor(ringActive)
-            val strokePx = gameHubTopBarIconStroke().dp.toPx()
-            val cap = androidx.compose.ui.graphics.StrokeCap.Round
-            val pad = size.minDimension * 0.14f
-            val w = size.width
-            val iconH = size.height - pad * 2f
-            val top = pad
-            val roofPeak = Offset(w * 0.5f, top + iconH * 0.08f)
-            val roofLineY = top + iconH * 0.4f
-            val roofLeft = Offset(w * 0.22f, roofLineY)
-            val roofRight = Offset(w * 0.78f, roofLineY)
-            drawLine(color, roofPeak, roofLeft, strokeWidth = strokePx, cap = cap)
-            drawLine(color, roofPeak, roofRight, strokeWidth = strokePx, cap = cap)
-            drawLine(color, roofLeft, roofRight, strokeWidth = strokePx, cap = cap)
-            val bodyTop = roofLineY
-            val bodyBottom = top + iconH * 0.9f
-            val bodyLeft = w * 0.3f
-            val bodyRight = w * 0.7f
-            drawLine(color, Offset(bodyLeft, bodyTop), Offset(bodyLeft, bodyBottom), strokeWidth = strokePx, cap = cap)
-            drawLine(color, Offset(bodyRight, bodyTop), Offset(bodyRight, bodyBottom), strokeWidth = strokePx, cap = cap)
-            drawLine(color, Offset(bodyLeft, bodyBottom), Offset(bodyRight, bodyBottom), strokeWidth = strokePx, cap = cap)
-            drawLine(color, Offset(w * 0.5f, bodyTop), Offset(w * 0.5f, bodyBottom), strokeWidth = strokePx * 0.85f, cap = cap)
-        }
-    }
-}
-
-@Composable
-private fun GameHubLibraryButton(
-    onClick: () -> Unit,
-    buttonSize: Dp = 46.dp,
-    reducedMotion: Boolean = false,
-    selected: Boolean = false,
-    modifier: Modifier = Modifier,
-    onFocusChanged: (Boolean) -> Unit = {},
-) {
-    val accent = LocalNoctAccent.current
-    val ringActive = selected
-    val scale by animateFloatAsState(
-        if (ringActive) 1.06f else 1f,
-        animationSpec = tween(280, easing = FastOutSlowInEasing),
-        label = "library-scale",
-    )
-    val iconSize = buttonSize * 0.54f
-    Box(
-        modifier =
-        modifier
-            .scale(scale)
-            .size(buttonSize)
-            .clip(CircleShape)
-            .gameHubFocusRing(
-                CircleShape,
-                accent,
-                focused = ringActive,
-                strokeDp = gameHubTopBarRingStroke(selected),
-                idleBorderDp = 2.dp,
-                reducedMotion = reducedMotion,
-            )
-            .gameHubActivateOnAccept(onClick)
-            .clickable(role = Role.Button, onClick = onClick)
-            .onFocusChanged { onFocusChanged(it.isFocused) }
-            .semantics {
-                role = Role.Button
-                contentDescription = "Library"
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.size(iconSize)) {
-            val stroke = Stroke(width = gameHubTopBarIconStroke().dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            val inset = size.minDimension * 0.14f
-            val gap = size.minDimension * 0.09f
-            val cell = (size.minDimension - inset * 2f - gap) / 2f
-            val grid = cell * 2f + gap
-            val originX = (size.width - grid) / 2f
-            val originY = (size.height - grid) / 2f
-            val color = gameHubTopBarIconColor(ringActive)
-            val corner = CornerRadius(3.dp.toPx(), 3.dp.toPx())
-            for (row in 0..1) {
-                for (col in 0..1) {
-                    drawRoundRect(
-                        color = color,
-                        topLeft = Offset(originX + col * (cell + gap), originY + row * (cell + gap)),
-                        size = Size(cell, cell),
-                        cornerRadius = corner,
-                        style = stroke,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GameHubScreensButton(
-    onClick: () -> Unit,
-    buttonSize: Dp = 46.dp,
-    reducedMotion: Boolean = false,
-    selected: Boolean = false,
-    modifier: Modifier = Modifier,
-    onFocusChanged: (Boolean) -> Unit = {},
-) {
-    val accent = LocalNoctAccent.current
-    val ringActive = selected
-    val scale by animateFloatAsState(
-        if (ringActive) 1.06f else 1f,
-        animationSpec = tween(280, easing = FastOutSlowInEasing),
-        label = "screens-scale",
-    )
-    val iconSize = buttonSize * 0.54f
-    Box(
-        modifier =
-        modifier
-            .scale(scale)
-            .size(buttonSize)
-            .clip(CircleShape)
-            .gameHubFocusRing(
-                CircleShape,
-                accent,
-                focused = ringActive,
-                strokeDp = gameHubTopBarRingStroke(selected),
-                idleBorderDp = 2.dp,
-                reducedMotion = reducedMotion,
-            )
-            .gameHubActivateOnAccept(onClick)
-            .clickable(role = Role.Button, onClick = onClick)
-            .onFocusChanged { onFocusChanged(it.isFocused) }
-            .semantics {
-                role = Role.Button
-                contentDescription = "Screens"
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.size(iconSize)) {
-            val strokePx = gameHubTopBarIconStroke().dp.toPx()
-            val stroke = Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            val color = gameHubTopBarIconColor(ringActive)
-            val cap = androidx.compose.ui.graphics.StrokeCap.Round
-            val screenW = size.width * 0.74f
-            val screenH = size.height * 0.42f
-            val standGap = size.height * 0.07f
-            val totalH = screenH + standGap + strokePx
-            val top = (size.height - totalH) / 2f
-            val left = (size.width - screenW) / 2f
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(left, top),
-                size = Size(screenW, screenH),
-                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
-                style = stroke,
-            )
-            val standY = top + screenH + standGap
-            val standW = screenW * 0.42f
-            drawLine(
-                color = color,
-                start = Offset(center.x - standW / 2f, standY),
-                end = Offset(center.x + standW / 2f, standY),
-                strokeWidth = strokePx,
-                cap = cap,
-            )
-        }
-    }
-}
-
-@Composable
-private fun GameHubConsoleModesButton(
-    onClick: () -> Unit,
-    buttonSize: Dp = 46.dp,
-    reducedMotion: Boolean = false,
-    selected: Boolean = false,
-    modifier: Modifier = Modifier,
-    onFocusChanged: (Boolean) -> Unit = {},
-) {
-    val accent = LocalNoctAccent.current
-    val ringActive = selected
-    val scale by animateFloatAsState(
-        if (ringActive) 1.06f else 1f,
-        animationSpec = tween(280, easing = FastOutSlowInEasing),
-        label = "modes-scale",
-    )
-    val iconSize = buttonSize * 0.54f
-    Box(
-        modifier =
-        modifier
-            .scale(scale)
-            .size(buttonSize)
-            .clip(CircleShape)
-            .gameHubFocusRing(
-                CircleShape,
-                accent,
-                focused = ringActive,
-                strokeDp = gameHubTopBarRingStroke(selected),
-                idleBorderDp = 2.dp,
-                reducedMotion = reducedMotion,
-            )
-            .gameHubActivateOnAccept(onClick)
-            .clickable(role = Role.Button, onClick = onClick)
-            .onFocusChanged { onFocusChanged(it.isFocused) }
-            .semantics {
-                role = Role.Button
-                contentDescription = "Console Modes"
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.size(iconSize)) {
-            val stroke = Stroke(width = gameHubTopBarIconStroke().dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            val color = gameHubTopBarIconColor(ringActive)
-            val outerR = size.minDimension * 0.38f
-            val innerR = size.minDimension * 0.22f
-            drawCircle(color = color, radius = outerR, center = center, style = stroke)
-            drawCircle(color = color.copy(alpha = 0.88f), radius = innerR, center = center, style = stroke)
-            drawCircle(color = color, radius = size.minDimension * 0.07f, center = center)
-        }
-    }
-}
-
-@Composable
-private fun GameHubSettingsCog(
-    onClick: () -> Unit,
-    cogSize: Dp = 46.dp,
-    reducedMotion: Boolean = false,
-    selected: Boolean = false,
-    modifier: Modifier = Modifier,
-    onFocusChanged: (Boolean) -> Unit = {},
-) {
-    val accent = LocalNoctAccent.current
-    val ringActive = selected
-    val scale by animateFloatAsState(
-        if (ringActive) 1.06f else 1f,
-        animationSpec = tween(280, easing = FastOutSlowInEasing),
-        label = "cog-scale",
-    )
-    val iconSize = cogSize * 0.54f
-    Box(
-        modifier =
-        modifier
-            .scale(scale)
-            .size(cogSize)
-            .clip(CircleShape)
-            .gameHubFocusRing(
-                CircleShape,
-                accent,
-                focused = ringActive,
-                strokeDp = gameHubTopBarRingStroke(selected),
-                idleBorderDp = 2.dp,
-                reducedMotion = reducedMotion,
-            )
-            .gameHubActivateOnAccept(onClick)
-            .clickable(role = Role.Button, onClick = onClick)
-            .onFocusChanged { onFocusChanged(it.isFocused) }
-            .semantics {
-                role = Role.Button
-                contentDescription = "Settings"
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.size(iconSize)) {
-            val iconColor = gameHubTopBarIconColor(ringActive)
-            val stroke = Stroke(width = gameHubTopBarIconStroke().dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            val c = center
-            val r = size.minDimension * 0.34f
-            drawCircle(color = iconColor.copy(alpha = if (ringActive) 0.22f else 0.12f), radius = r * 1.35f, center = c)
-            drawCircle(color = iconColor, radius = r, center = c, style = stroke)
-            val toothStroke = gameHubTopBarIconStroke().dp.toPx()
-            val cap = androidx.compose.ui.graphics.StrokeCap.Round
-            for (i in 0 until 8) {
-                val angle = (i * 45f) * (Math.PI / 180f).toFloat()
-                val inner = Offset(c.x + kotlin.math.cos(angle) * r * 0.55f, c.y + kotlin.math.sin(angle) * r * 0.55f)
-                val outer = Offset(c.x + kotlin.math.cos(angle) * r * 0.92f, c.y + kotlin.math.sin(angle) * r * 0.92f)
-                drawLine(color = iconColor, start = inner, end = outer, strokeWidth = toothStroke, cap = cap)
-            }
         }
     }
 }
@@ -2372,79 +2389,255 @@ internal fun gameHubGridMoveLeft(index: Int, columns: Int, count: Int): Int {
 @Composable
 private fun GameHubLauncherStage(
     items: List<GameHubLauncherItem>,
+    layout: GameHubLauncherLayout,
     libraryApps: List<LibraryAppItem>,
     accent: Color,
     reducedMotion: Boolean,
     focusedIndex: Int,
     gridInputActive: Boolean,
+    onFocusedIndexChange: (Int) -> Unit,
     onTileActivate: (GameHubLauncherItem) -> Unit,
     onTileLongPress: (GameHubLauncherItem) -> Unit,
 ) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+
+    LaunchedEffect(focusedIndex, gridInputActive) {
+        if (gridInputActive) {
+            bringIntoView.bringIntoView()
+        }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val layout = GameHubViewport.launcherGridLayout(maxWidth, maxHeight, items.size.coerceAtLeast(1))
-        val gridFocused = gridInputActive && focusedIndex in items.indices
-        Column(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = layout.contentInsetH),
-            verticalArrangement = Arrangement.Top,
-        ) {
-            if (items.isEmpty()) {
-                NoctGlassCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Nothing in your library yet", color = NoctColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "Add games and emulators in Settings → Library.",
-                            color = NoctColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
+        if (items.isEmpty()) {
+            NoctGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Nothing in your library yet", color = NoctColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Add games and emulators in Settings → Library.",
+                        color = NoctColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(layout.gap),
-                    horizontalAlignment = Alignment.Start,
-                ) {
-                    for (row in 0 until layout.rows) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().height(layout.tileHeight),
-                            horizontalArrangement = Arrangement.spacedBy(layout.gap),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            for (col in 0 until layout.columns) {
-                                val index = row * layout.columns + col
-                                if (index < items.size) {
-                                    val item = items[index]
-                                    val libraryEntry =
-                                        if (item.isAzahar) {
-                                            libraryApps.firstOrNull { GameHubHomeMapper.isAzaharPackage(it.model.packageName) }
-                                        } else {
-                                            libraryApps.firstOrNull { it.model.packageName == item.id }
-                                        }
-                                    GameHubLauncherTile(
-                                        item = item,
-                                        iconPackageName = libraryEntry?.model?.packageName,
-                                        icon = libraryEntry?.icon,
-                                        tileWidth = layout.tileWidth,
-                                        tileHeight = layout.tileHeight,
-                                        accent = accent,
-                                        reducedMotion = reducedMotion,
-                                        focused = gridInputActive && index == focusedIndex,
-                                        rowHasFocus = gridFocused,
-                                        onClick = { onTileActivate(item) },
-                                        onLongPress = { onTileLongPress(item) },
-                                    )
-                                } else {
-                                    Spacer(modifier = Modifier.size(layout.tileWidth, layout.tileHeight))
-                                }
+            }
+            return@BoxWithConstraints
+        }
+
+        when (layout) {
+            GameHubLauncherLayout.Cover ->
+                GameHubLauncherCoverStage(
+                    items = items,
+                    libraryApps = libraryApps,
+                    stageWidth = maxWidth,
+                    accent = accent,
+                    reducedMotion = reducedMotion,
+                    focusedIndex = focusedIndex,
+                    gridInputActive = gridInputActive,
+                    bringIntoView = bringIntoView,
+                    onFocusedIndexChange = onFocusedIndexChange,
+                    onTileActivate = onTileActivate,
+                    onTileLongPress = onTileLongPress,
+                )
+
+            GameHubLauncherLayout.Grid ->
+                GameHubLauncherGridStage(
+                    items = items,
+                    libraryApps = libraryApps,
+                    stageWidth = maxWidth,
+                    stageHeight = maxHeight,
+                    accent = accent,
+                    reducedMotion = reducedMotion,
+                    focusedIndex = focusedIndex,
+                    gridInputActive = gridInputActive,
+                    bringIntoView = bringIntoView,
+                    onFocusedIndexChange = onFocusedIndexChange,
+                    onTileActivate = onTileActivate,
+                    onTileLongPress = onTileLongPress,
+                )
+        }
+    }
+}
+
+@Composable
+private fun GameHubLauncherGridStage(
+    items: List<GameHubLauncherItem>,
+    libraryApps: List<LibraryAppItem>,
+    stageWidth: Dp,
+    stageHeight: Dp,
+    accent: Color,
+    reducedMotion: Boolean,
+    focusedIndex: Int,
+    gridInputActive: Boolean,
+    bringIntoView: BringIntoViewRequester,
+    onFocusedIndexChange: (Int) -> Unit,
+    onTileActivate: (GameHubLauncherItem) -> Unit,
+    onTileLongPress: (GameHubLauncherItem) -> Unit,
+) {
+    val layout =
+        remember(stageWidth, stageHeight, items.size) {
+            val pages = gameHubPagedGridPageCount(items.size, GAME_HUB_LAUNCHER_PAGE_SIZE)
+            GameHubViewport.connectedHomeGridLayout(
+                stageWidth = stageWidth,
+                stageHeight = stageHeight,
+                hintBarReserved = if (pages > 1) 10.dp else 0.dp,
+            )
+        }
+    val pageIndex = gameHubPagedGridPageIndex(focusedIndex, GAME_HUB_LAUNCHER_PAGE_SIZE)
+    val pageCount = gameHubPagedGridPageCount(items.size, GAME_HUB_LAUNCHER_PAGE_SIZE)
+    val gridFocused = gridInputActive
+    val focusedLocalRow = gameHubLauncherGridLocalRow(focusedIndex)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        GameHubHorizontalPagePager(
+            pageCount = pageCount,
+            currentPage = pageIndex,
+            onPageChanged = { page ->
+                onFocusedIndexChange(
+                    gameHubFocusIndexForPage(
+                        page = page,
+                        currentIndex = focusedIndex,
+                        columns = GAME_HUB_LAUNCHER_GRID_COLUMNS,
+                        pageSize = GAME_HUB_LAUNCHER_PAGE_SIZE,
+                        count = items.size,
+                    ),
+                )
+            },
+            modifier = Modifier.weight(1f),
+        ) { page ->
+            val pageStart = page * GAME_HUB_LAUNCHER_PAGE_SIZE
+            val pageItems = items.drop(pageStart).take(GAME_HUB_LAUNCHER_PAGE_SIZE)
+            Column(
+                modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = layout.contentInsetH),
+                verticalArrangement = Arrangement.spacedBy(layout.gap),
+            ) {
+                for (row in 0 until GAME_HUB_LAUNCHER_GRID_ROWS) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(layout.tileHeight),
+                        horizontalArrangement = Arrangement.spacedBy(layout.gap),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        for (col in 0 until GAME_HUB_LAUNCHER_GRID_COLUMNS) {
+                            val localIndex = row * GAME_HUB_LAUNCHER_GRID_COLUMNS + col
+                            val globalIndex = pageStart + localIndex
+                            if (globalIndex < items.size && localIndex < pageItems.size) {
+                                val item = pageItems[localIndex]
+                                val libraryEntry =
+                                    if (item.isAzahar) {
+                                        libraryApps.firstOrNull { GameHubHomeMapper.isAzaharPackage(it.model.packageName) }
+                                    } else {
+                                        libraryApps.firstOrNull { it.model.packageName == item.id }
+                                    }
+                                val tileFocused = gridFocused && focusedIndex == globalIndex
+                                val rowFocused = gridFocused && focusedLocalRow == row
+                                GameHubLauncherTile(
+                                    item = item,
+                                    iconPackageName = libraryEntry?.model?.packageName,
+                                    icon = libraryEntry?.icon,
+                                    tileWidth = layout.tileWidth,
+                                    tileHeight = layout.tileHeight,
+                                    accent = accent,
+                                    reducedMotion = reducedMotion,
+                                    focused = tileFocused,
+                                    rowHasFocus = rowFocused,
+                                    modifier =
+                                    if (tileFocused) {
+                                        Modifier.bringIntoViewRequester(bringIntoView)
+                                    } else {
+                                        Modifier
+                                    },
+                                    onClick = { onTileActivate(item) },
+                                    onLongPress = { onTileLongPress(item) },
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(layout.tileWidth, layout.tileHeight))
                             }
                         }
                     }
                 }
             }
         }
+        if (pageCount > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                repeat(pageCount) { index ->
+                    val active = index == pageIndex
+                    Box(
+                        modifier =
+                        Modifier
+                            .padding(horizontal = 3.dp)
+                            .size(if (active) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (active) accent.copy(alpha = 0.9f) else NoctColors.TextSecondary.copy(alpha = 0.35f),
+                            ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GameHubLauncherCoverStage(
+    items: List<GameHubLauncherItem>,
+    libraryApps: List<LibraryAppItem>,
+    stageWidth: Dp,
+    accent: Color,
+    reducedMotion: Boolean,
+    focusedIndex: Int,
+    gridInputActive: Boolean,
+    bringIntoView: BringIntoViewRequester,
+    onFocusedIndexChange: (Int) -> Unit,
+    onTileActivate: (GameHubLauncherItem) -> Unit,
+    onTileLongPress: (GameHubLauncherItem) -> Unit,
+) {
+    val metrics = remember(stageWidth) { gameHubPosterShelfMetrics(stageWidth) }
+    val coverFocused = gridInputActive
+
+    GameHubCoverCarousel(
+        itemCount = items.size,
+        focusedIndex = focusedIndex,
+        contentPadding = PaddingValues(horizontal = metrics.contentInsetH),
+        itemSpacing = metrics.gap,
+        onFocusedIndexChange = onFocusedIndexChange,
+        modifier = Modifier.fillMaxSize(),
+    ) { index ->
+        val item = items[index]
+        val libraryEntry =
+            if (item.isAzahar) {
+                libraryApps.firstOrNull { GameHubHomeMapper.isAzaharPackage(it.model.packageName) }
+            } else {
+                libraryApps.firstOrNull { it.model.packageName == item.id }
+            }
+        val tileFocused = coverFocused && focusedIndex == index
+        GameHubLauncherTile(
+            item = item,
+            iconPackageName = libraryEntry?.model?.packageName,
+            icon = libraryEntry?.icon,
+            tileWidth = metrics.tileWidth,
+            tileHeight = metrics.tileHeight,
+            accent = accent,
+            reducedMotion = reducedMotion,
+            focused = tileFocused,
+            rowHasFocus = coverFocused,
+            variant = GameHubLauncherTileVariant.Poster,
+            modifier =
+            if (tileFocused) {
+                Modifier.bringIntoViewRequester(bringIntoView)
+            } else {
+                Modifier
+            },
+            onClick = { onTileActivate(item) },
+            onLongPress = { onTileLongPress(item) },
+        )
     }
 }
 
@@ -2472,36 +2665,118 @@ internal fun GameHubLauncherTile(
     focused: Boolean,
     rowHasFocus: Boolean,
     modifier: Modifier = Modifier,
+    variant: GameHubLauncherTileVariant = GameHubLauncherTileVariant.Classic,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+) {
+    if (variant == GameHubLauncherTileVariant.Poster) {
+        GameHubPosterLauncherTile(
+            item = item,
+            iconPackageName = iconPackageName,
+            icon = icon,
+            tileWidth = tileWidth,
+            tileHeight = tileHeight,
+            accent = accent,
+            reducedMotion = reducedMotion,
+            focused = focused,
+            rowHasFocus = rowHasFocus,
+            modifier = modifier,
+            onClick = onClick,
+            onLongPress = onLongPress,
+        )
+        return
+    }
+    GameHubClassicLauncherTile(
+        item = item,
+        iconPackageName = iconPackageName,
+        icon = icon,
+        tileWidth = tileWidth,
+        tileHeight = tileHeight,
+        accent = accent,
+        reducedMotion = reducedMotion,
+        focused = focused,
+        rowHasFocus = rowHasFocus,
+        modifier = modifier,
+        onClick = onClick,
+        onLongPress = onLongPress,
+    )
+}
+
+@Composable
+private fun GameHubPosterLauncherTile(
+    item: GameHubLauncherItem,
+    iconPackageName: String?,
+    icon: android.graphics.drawable.Drawable?,
+    tileWidth: Dp,
+    tileHeight: Dp,
+    accent: Color,
+    reducedMotion: Boolean,
+    focused: Boolean,
+    rowHasFocus: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
     val tileInteraction = remember { MutableInteractionSource() }
-    // Focus shown via ring/glow only — no size pop (avoids overlapping neighbours).
-    val scale = 1f
-    val dimAlpha =
+    val scale by animateFloatAsState(if (focused) 1.04f else 1f, animationSpec = tween(280), label = "poster-scale")
+    val contentAlpha =
         when {
             focused -> 1f
-            rowHasFocus -> 0.52f
-            else -> 0.82f
+            rowHasFocus -> 0.62f
+            else -> 0.94f
         }
-    val glowAlpha by animateFloatAsState(if (focused) 0.72f else 0.14f, animationSpec = tween(400), label = "tile-glow")
-    val shape = RoundedCornerShape(20.dp)
-    val iconSize = minOf(tileWidth, tileHeight) * 0.46f
-    val pad = 8.dp
+    val glowAlpha by animateFloatAsState(if (focused) 0.95f else 0.38f, animationSpec = tween(400), label = "poster-glow")
+    val gradientPhase =
+        if (focused && !reducedMotion) {
+            LocalGameHubGradientPhase.current
+        } else {
+            0f
+        }
+    val shape = RoundedCornerShape(18.dp)
+    val cornerRadius = 18.dp
+    val density = LocalDensity.current
+    val cornerRadiusPx = with(density) { cornerRadius.toPx() }
+    val iconBoxSize = tileWidth * 0.52f
+    val profileTitle = item.profileOverrideId?.let { id -> StreamProfiles.all.firstOrNull { it.id == id }?.title }
+    val titleScrimEnd = if (focused) Color(0x66101824) else Color(0xE610141C)
+
     Box(
         modifier =
         modifier
             .width(tileWidth)
             .height(tileHeight)
             .scale(scale)
+            .drawBehind {
+                drawGameHubLauncherTileGlass(
+                    focused = focused,
+                    accent = accent,
+                    glowAlpha = glowAlpha,
+                    cornerRadiusPx = cornerRadiusPx,
+                )
+                if (focused) {
+                    drawGameHubLauncherTileFocusBloom(
+                        accent = accent,
+                        glowAlpha = glowAlpha,
+                        cornerRadiusPx = cornerRadiusPx,
+                        gradientPhase = gradientPhase,
+                    )
+                }
+            }
             .clip(shape)
-            .gameHubFocusRing(
-                shape,
-                accent,
-                focused = focused,
-                strokeDp = if (focused) 3.5f else 1f,
-                reducedMotion = reducedMotion,
+            .then(
+                if (focused) {
+                    Modifier.gameHubFocusRing(
+                        shape = shape,
+                        accent = accent,
+                        focused = true,
+                        strokeDp = 3.5f,
+                        reducedMotion = reducedMotion,
+                        cornerRadius = cornerRadius,
+                    )
+                } else {
+                    Modifier
+                },
             )
             .combinedClickable(
                 interactionSource = tileInteraction,
@@ -2518,26 +2793,180 @@ internal fun GameHubLauncherTile(
             modifier =
             Modifier
                 .matchParentSize()
-                .padding(2.dp)
-                .clip(shape)
-                .alpha(dimAlpha),
+                .alpha(contentAlpha)
+                .graphicsLayer {
+                    translationY = if (focused) -2f else 0f
+                },
         ) {
-            androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                drawRoundRect(
-                    brush =
-                    Brush.radialGradient(
-                        colors =
-                        listOf(
-                            accent.copy(alpha = glowAlpha * 0.42f),
-                            NoctColors.Magenta.copy(alpha = glowAlpha * 0.24f),
-                            Color(0x88101820),
+            Row(
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp, end = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                item.badgeLabel?.let { GameHubTileBadge(it, accent) }
+                profileTitle?.let { GameHubTileBadge(it, accent.copy(alpha = 0.92f)) }
+            }
+            Box(
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = tileHeight * 0.14f),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (icon != null && iconPackageName != null) {
+                    GameHubLauncherIcon(
+                        packageName = iconPackageName,
+                        icon = icon,
+                        modifier = Modifier.size(iconBoxSize * 0.72f),
+                    )
+                } else {
+                    NoctOrb(modifier = Modifier.size(iconBoxSize * 0.72f), color = accent, reducedMotion = reducedMotion)
+                }
+            }
+            Box(
+                modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(tileHeight * if (focused) 0.28f else 0.32f)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0x00000000), titleScrimEnd),
                         ),
-                        center = Offset(size.width * 0.5f, size.height * 0.38f),
-                        radius = size.maxDimension * 0.95f,
                     ),
-                    cornerRadius = CornerRadius(18.dp.toPx()),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                Text(
+                    item.label,
+                    color = NoctColors.TextPrimary,
+                    fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                 )
             }
+            if (item.isFavourite) {
+                GameHubFavouriteBadge(
+                    accent = accent,
+                    modifier =
+                    Modifier
+                        .zIndex(1f)
+                        .align(Alignment.TopEnd)
+                        .padding(top = 6.dp, end = 6.dp),
+                ) {
+                    GameHubFavouriteStar(accent = accent, modifier = Modifier.size(15.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GameHubTileBadge(label: String, accent: Color) {
+    Text(
+        label,
+        color = accent,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+        Modifier
+            .background(accent.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
+            .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+@Composable
+private fun GameHubClassicLauncherTile(
+    item: GameHubLauncherItem,
+    iconPackageName: String?,
+    icon: android.graphics.drawable.Drawable?,
+    tileWidth: Dp,
+    tileHeight: Dp,
+    accent: Color,
+    reducedMotion: Boolean,
+    focused: Boolean,
+    rowHasFocus: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    val tileInteraction = remember { MutableInteractionSource() }
+    val scale by animateFloatAsState(if (focused) 1.045f else 1f, animationSpec = tween(280), label = "tile-scale")
+    val contentAlpha =
+        when {
+            focused -> 1f
+            rowHasFocus -> 0.68f
+            else -> 0.94f
+        }
+    val glowAlpha by animateFloatAsState(if (focused) 0.95f else 0.38f, animationSpec = tween(400), label = "tile-glow")
+    val gradientPhase =
+        if (focused && !reducedMotion) {
+            LocalGameHubGradientPhase.current
+        } else {
+            0f
+        }
+    val shape = RoundedCornerShape(20.dp)
+    val cornerRadius = 20.dp
+    val density = LocalDensity.current
+    val cornerRadiusPx = with(density) { cornerRadius.toPx() }
+    val iconSize = minOf(tileWidth, tileHeight) * 0.46f
+    val pad = 8.dp
+    Box(
+        modifier =
+        modifier
+            .width(tileWidth)
+            .height(tileHeight)
+            .scale(scale)
+            .drawBehind {
+                drawGameHubLauncherTileGlass(
+                    focused = focused,
+                    accent = accent,
+                    glowAlpha = glowAlpha,
+                    cornerRadiusPx = cornerRadiusPx,
+                )
+                if (focused) {
+                    drawGameHubLauncherTileFocusBloom(
+                        accent = accent,
+                        glowAlpha = glowAlpha,
+                        cornerRadiusPx = cornerRadiusPx,
+                        gradientPhase = gradientPhase,
+                    )
+                }
+            }
+            .clip(shape)
+            .then(
+                if (focused) {
+                    Modifier.gameHubFocusRing(
+                        shape = shape,
+                        accent = accent,
+                        focused = true,
+                        strokeDp = 3.5f,
+                        reducedMotion = reducedMotion,
+                        cornerRadius = cornerRadius,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .combinedClickable(
+                interactionSource = tileInteraction,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                },
+            ),
+    ) {
+        Box(
+            modifier =
+            Modifier
+                .matchParentSize()
+                .alpha(contentAlpha),
+        ) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(pad),
                 contentAlignment = Alignment.Center,
@@ -2546,16 +2975,14 @@ internal fun GameHubLauncherTile(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(iconSize)) {
-                        if (icon != null && iconPackageName != null) {
-                            GameHubLauncherIcon(
-                                packageName = iconPackageName,
-                                icon = icon,
-                                modifier = Modifier.size(iconSize * 0.92f),
-                            )
-                        } else {
-                            NoctOrb(modifier = Modifier.fillMaxSize(), color = accent, reducedMotion = reducedMotion)
-                        }
+                    if (icon != null && iconPackageName != null) {
+                        GameHubLauncherIcon(
+                            packageName = iconPackageName,
+                            icon = icon,
+                            modifier = Modifier.size(iconSize * 0.72f),
+                        )
+                    } else {
+                        NoctOrb(modifier = Modifier.size(iconSize * 0.72f), color = accent, reducedMotion = reducedMotion)
                     }
                     Text(
                         item.label,
@@ -2588,15 +3015,16 @@ internal fun GameHubLauncherTile(
             }
         }
         if (item.isFavourite) {
-            GameHubFavouriteStar(
+            GameHubFavouriteBadge(
                 accent = accent,
                 modifier =
                 Modifier
                     .zIndex(1f)
                     .align(Alignment.TopEnd)
-                    .padding(top = 7.dp, end = 7.dp)
-                    .graphicsLayer { alpha = 1f },
-            )
+                    .padding(top = 6.dp, end = 6.dp),
+            ) {
+                GameHubFavouriteStar(accent = accent, modifier = Modifier.size(15.dp))
+            }
         }
     }
 }
@@ -2798,7 +3226,7 @@ private fun gameHubSmoothSweepColors(accent: Color, stepsPerSegment: Int = 6): L
 }
 
 /** Rotates sweep-gradient angle only — outline stays fixed; loop is seamless at 0°/360°. */
-private fun gameHubRotatingSweepBrush(colors: List<Color>, center: Offset, phase: Float): ShaderBrush {
+internal fun gameHubRotatingSweepBrush(colors: List<Color>, center: Offset, phase: Float): ShaderBrush {
     val (intColors, positions) = gameHubSeamlessSweepStops(colors)
     val shader =
         SweepGradient(center.x, center.y, intColors, positions).apply {

@@ -5,6 +5,8 @@ import com.glowseed.noctdock.core.AccentTheme
 import com.glowseed.noctdock.core.AppearanceDefaults
 import com.glowseed.noctdock.core.BackgroundMotionMode
 import com.glowseed.noctdock.core.ConsoleModeState
+import com.glowseed.noctdock.core.GameHubControllerLayout
+import com.glowseed.noctdock.core.GameHubLauncherLayout
 import com.glowseed.noctdock.core.NebulaTheme
 import com.glowseed.noctdock.core.ScreenCloakMode
 import com.glowseed.noctdock.core.SoundMode
@@ -61,6 +63,25 @@ internal fun groupGameHubSettingsSections(rows: List<GameHubSettingsRow>): List<
     return blocks
 }
 
+internal fun gameHubSettingsSectionForFocusIndex(rows: List<GameHubSettingsRow>, focusIndex: Int): String? {
+    var currentSection: String? = null
+    var cursor = 0
+    rows.forEach { row ->
+        when (row) {
+            is GameHubSettingsRow.Section -> currentSection = row.title
+            is GameHubSettingsRow.Focus -> {
+                if (cursor == focusIndex) return currentSection
+                cursor++
+            }
+
+            else -> Unit
+        }
+    }
+    return null
+}
+
+internal fun gameHubSettingsSectionDefaultExpanded(title: String): Boolean = title != "Advanced"
+
 internal fun gameHubSettingsFocusItemCount(rows: List<GameHubSettingsRow>): Int = rows.count { it is GameHubSettingsRow.Focus }.coerceAtLeast(1)
 
 internal fun gameHubSettingsMoveDown(index: Int, count: Int): Int {
@@ -94,7 +115,6 @@ internal fun buildGameHubSettingsRows(
     viewModel: SenderViewModel,
     overlayAllowed: Boolean,
     systemWriteAllowed: Boolean,
-    onOpenDiagnostics: () -> Unit,
     onScreenCloakTest: () -> Unit,
 ): List<GameHubSettingsRow> = buildList {
     add(GameHubSettingsRow.Section("Experience", "Feel immediate and calm."))
@@ -229,6 +249,34 @@ internal fun buildGameHubSettingsRows(
     add(
         GameHubSettingsRow.Focus(
             GameHubSettingsFocusItem.Option(
+                label = "Controller layout",
+                options = GameHubControllerLayout.entries.map { AppearanceDefaults.controllerLayoutLabel(it) },
+                read = { AppearanceDefaults.controllerLayoutLabel(uiState.appearanceSettings.controllerLayout) },
+                write = { label ->
+                    GameHubControllerLayout.entries
+                        .firstOrNull { AppearanceDefaults.controllerLayoutLabel(it) == label }
+                        ?.let(viewModel::updateControllerLayout)
+                },
+            ),
+        ),
+    )
+    add(
+        GameHubSettingsRow.Focus(
+            GameHubSettingsFocusItem.Option(
+                label = "Home layout",
+                options = GameHubLauncherLayout.entries.map { AppearanceDefaults.launcherLayoutLabel(it) },
+                read = { AppearanceDefaults.launcherLayoutLabel(uiState.appearanceSettings.launcherLayout) },
+                write = { label ->
+                    GameHubLauncherLayout.entries
+                        .firstOrNull { AppearanceDefaults.launcherLayoutLabel(it) == label }
+                        ?.let(viewModel::updateLauncherLayout)
+                },
+            ),
+        ),
+    )
+    add(
+        GameHubSettingsRow.Focus(
+            GameHubSettingsFocusItem.Option(
                 label = "Layout spacing",
                 options = UiDensity.entries.map { it.name },
                 read = { uiState.appearanceSettings.uiDensity.name },
@@ -340,14 +388,7 @@ internal fun buildGameHubSettingsRows(
     add(GameHubSettingsRow.Section("About", "Privacy, version, and tools."))
     add(GameHubSettingsRow.Privacy)
     add(GameHubSettingsRow.Note("NoctDock version 0.1.0"))
-    add(
-        GameHubSettingsRow.Focus(
-            GameHubSettingsFocusItem.Button(
-                label = "System Status",
-                onClick = onOpenDiagnostics,
-            ),
-        ),
-    )
+    add(GameHubSettingsRow.Note("Built by Glowseed Studio"))
 }
 
 internal fun gameHubSettingsPerformAccept(item: GameHubSettingsFocusItem, context: Context, overlayAllowed: Boolean, onScreenCloakModeSelected: (ScreenCloakMode) -> Unit) {

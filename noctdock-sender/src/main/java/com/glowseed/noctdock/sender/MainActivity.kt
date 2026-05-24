@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -237,15 +238,16 @@ private fun SenderApp(navController: NavHostController = rememberNavController()
         accentTheme = uiState.appearanceSettings.accentTheme,
         uiDensity = uiState.appearanceSettings.uiDensity,
     ) {
-        NoctBackground(
-            dynamicNebula = uiState.consoleModeState != ConsoleModeState.Streaming && !uiState.appearanceSettings.reducedMotion,
-            ambientMotionEnabled = !uiState.appearanceSettings.reducedMotion,
-            theme = uiState.appearanceSettings.backgroundTheme,
-            motionMode = uiState.appearanceSettings.backgroundMotionMode,
-            reducedMotion = uiState.appearanceSettings.reducedMotion,
-            batterySaver = uiState.performanceSettings.batterySaverMode,
-            surface = BackgroundSurface.Handheld,
-        ) {
+        GameHubControllerLayoutHost(layout = uiState.appearanceSettings.controllerLayout) {
+            NoctBackground(
+                dynamicNebula = uiState.consoleModeState != ConsoleModeState.Streaming && !uiState.appearanceSettings.reducedMotion,
+                ambientMotionEnabled = !uiState.appearanceSettings.reducedMotion,
+                theme = uiState.appearanceSettings.backgroundTheme,
+                motionMode = uiState.appearanceSettings.backgroundMotionMode,
+                reducedMotion = uiState.appearanceSettings.reducedMotion,
+                batterySaver = uiState.performanceSettings.batterySaverMode,
+                surface = BackgroundSurface.Handheld,
+            ) {
             NavHost(navController = navController, startDestination = SenderRoutes.ROUTE_HOME) {
                 composable(SenderRoutes.ROUTE_HOME) { entry ->
                     val openLibraryPanel =
@@ -347,7 +349,18 @@ private fun SenderApp(navController: NavHostController = rememberNavController()
                     },
                 )
             }
+            if (!uiState.appearanceSettings.controllerLayoutConfigured) {
+                GameHubControllerLayoutPicker(
+                    onConfirm = { layout ->
+                        if (uiState.appearanceSettings.hapticsEnabled) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        viewModel.confirmControllerLayout(layout)
+                    },
+                )
+            }
         }
+    }
     }
 }
 
@@ -1247,8 +1260,18 @@ private fun PairingDialog(uiState: SenderUiState, viewModel: SenderViewModel) {
                     value = code,
                     onValueChange = { code = it.filter(Char::isDigit).take(4) },
                     label = { Text("Pairing code") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
+                    colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = NoctColors.TextPrimary,
+                        unfocusedTextColor = NoctColors.TextPrimary,
+                        cursorColor = NoctColors.Cyan,
+                        focusedBorderColor = NoctColors.Cyan,
+                        unfocusedBorderColor = NoctColors.GlassBorder,
+                        focusedLabelColor = NoctColors.Cyan,
+                        unfocusedLabelColor = NoctColors.TextSecondary,
+                    ),
                 )
             }
         },

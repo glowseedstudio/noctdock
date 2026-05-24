@@ -1,10 +1,19 @@
 package com.glowseed.noctdock.sender
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,10 +32,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -38,16 +49,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.glowseed.noctdock.core.DiscoveredReceiver
-import com.glowseed.noctdock.core.NoctCard
+import com.glowseed.noctdock.core.LocalNoctAccent
 import com.glowseed.noctdock.core.NoctColors
 import com.glowseed.noctdock.core.NoctGlassCard
 import com.glowseed.noctdock.core.NoctOrb
 import com.glowseed.noctdock.core.NoctPrimaryButton
 import com.glowseed.noctdock.core.NoctSecondaryButton
-import com.glowseed.noctdock.core.NoctSpacing
 import com.glowseed.noctdock.core.NoctStatusPill
 import com.glowseed.noctdock.core.ReceiverDisplayWording
-import com.glowseed.noctdock.core.noctSpace
 
 internal fun gameHubScreensItemCount(receiverCount: Int): Int = receiverCount.coerceAtLeast(1)
 
@@ -79,10 +88,19 @@ internal fun gameHubDeviceHeroSubtitle(receiver: DiscoveredReceiver?, uiState: S
 internal fun gameHubReceiverNoun(receiver: DiscoveredReceiver): String = ReceiverDisplayWording.receiverNoun(receiver.formFactor)
 
 @Composable
-internal fun GameHubScreensStage(uiState: SenderUiState, viewModel: SenderViewModel, focusedIndex: Int, listInputActive: Boolean, reducedMotion: Boolean, onSearchAgain: () -> Unit) {
+internal fun GameHubScreensStage(
+    uiState: SenderUiState,
+    viewModel: SenderViewModel,
+    focusedIndex: Int,
+    listInputActive: Boolean,
+    reducedMotion: Boolean,
+    connectedScreenPill: String? = null,
+    onSearchAgain: () -> Unit,
+) {
     val receivers = uiState.receivers
     val scrollState = rememberScrollState()
     val bringIntoView = remember { BringIntoViewRequester() }
+    val accent = LocalNoctAccent.current
 
     LaunchedEffect(focusedIndex, listInputActive, receivers.size) {
         if (!listInputActive) return@LaunchedEffect
@@ -96,6 +114,14 @@ internal fun GameHubScreensStage(uiState: SenderUiState, viewModel: SenderViewMo
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (connectedScreenPill != null) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                GameHubReceiverPill(text = connectedScreenPill, accent = accent)
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -269,14 +295,6 @@ private fun GameHubReceiverCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    if (trusted) NoctStatusPill("Recent", NoctColors.Green)
-                    if (selected) NoctStatusPill("Selected", NoctColors.Cyan)
-                    if (!receiver.isOnline) NoctStatusPill("Offline", NoctColors.Magenta)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
                     NoctSecondaryButton(
                         text = if (selected) "Selected" else "Choose",
                         onClick = onSelect,
@@ -330,30 +348,84 @@ private fun GameHubTvOrbBadge(accent: Color, modifier: Modifier = Modifier, icon
 
 @Composable
 private fun GameHubScreensManualConnection(uiState: SenderUiState, viewModel: SenderViewModel) {
-    NoctCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            NoctSecondaryButton(
-                "Advanced & Experimental",
-                { viewModel.setManualExpanded(!uiState.manualExpanded) },
-                minHeight = 40.dp,
-            )
-            if (uiState.manualExpanded) {
-                OutlinedTextField(
-                    value = uiState.manualHost,
-                    onValueChange = viewModel::updateManualHost,
-                    label = { Text("Local host or IP") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = uiState.manualPort,
-                    onValueChange = viewModel::updateManualPort,
-                    label = { Text("Port") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                NoctPrimaryButton("Connect manually", viewModel::connectManual, minHeight = 42.dp)
+    val expanded = uiState.manualExpanded
+    val shape = RoundedCornerShape(18.dp)
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(260),
+        label = "manual-chevron",
+    )
+
+    Box(modifier = Modifier.fillMaxWidth().clip(shape)) {
+        NoctGlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.setManualExpanded(!expanded) }
+                        .padding(horizontal = 14.dp, vertical = 13.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f).padding(end = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            "Advanced & Experimental",
+                            color = NoctColors.TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            "Manual IP connection for testing",
+                            color = NoctColors.TextSecondary.copy(alpha = 0.88f),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    GameHubCollapseChevron(
+                        modifier = Modifier.rotate(chevronRotation),
+                        tint = NoctColors.TextSecondary.copy(alpha = 0.92f),
+                    )
+                }
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = fadeIn(tween(220)) + expandVertically(tween(260)),
+                    exit = fadeOut(tween(160)) + shrinkVertically(tween(220)),
+                ) {
+                    Column(
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(NoctColors.GlassBorder.copy(alpha = 0.45f)),
+                        )
+                        OutlinedTextField(
+                            value = uiState.manualHost,
+                            onValueChange = viewModel::updateManualHost,
+                            label = { Text("Local host or IP") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = uiState.manualPort,
+                            onValueChange = viewModel::updateManualPort,
+                            label = { Text("Port") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        NoctPrimaryButton("Connect manually", viewModel::connectManual, minHeight = 42.dp)
+                    }
+                }
             }
         }
     }

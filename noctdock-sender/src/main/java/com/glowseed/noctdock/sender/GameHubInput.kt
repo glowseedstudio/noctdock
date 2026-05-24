@@ -42,6 +42,10 @@ internal fun KeyEvent.gameHubIsAcceptDown(): Boolean = type == KeyEventType.KeyD
 
 internal fun KeyEvent.gameHubIsBackDown(): Boolean = type == KeyEventType.KeyDown && key in gameHubBackKeys
 
+internal fun KeyEvent.gameHubIsOptionsDown(): Boolean = type == KeyEventType.KeyDown && key == Key.ButtonX
+
+internal fun KeyEvent.gameHubIsFavouriteDown(): Boolean = type == KeyEventType.KeyDown && key == Key.ButtonY
+
 internal fun gameHubTopBarIndexForFilter(filter: GameHubLibraryFilter): Int = GameHubLibraryFilter.entries.indexOf(filter).coerceAtLeast(0)
 
 /** Gamepad A / Enter on a hub control — does not rely on [androidx.compose.foundation.clickable] alone. */

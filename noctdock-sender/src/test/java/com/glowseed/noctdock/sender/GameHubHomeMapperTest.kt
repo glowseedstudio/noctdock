@@ -107,40 +107,33 @@ class GameHubHomeMapperTest {
     }
 
     @Test
-    fun gridLayoutFitsAllItemsOnOneScreen() {
-        val layout = GameHubViewport.launcherGridLayout(stageWidth = 720.dp, stageHeight = 260.dp, itemCount = 7)
-        assertTrue(layout.columns * layout.rows >= 7)
-        val totalH = layout.tileHeight * layout.rows + layout.gap * (layout.rows - 1)
-        assertTrue(totalH <= 260.dp)
-        assertTrue(layout.contentInsetH >= 20.dp)
+    fun connectedHomeGridLayoutUsesFourByThree() {
+        val layout = GameHubViewport.connectedHomeGridLayout(stageWidth = 720.dp, stageHeight = 360.dp)
+        assertEquals(4, layout.columns)
+        assertEquals(3, layout.rows)
+        assertTrue(layout.tileWidth >= 72.dp)
+        assertTrue(layout.tileHeight >= 88.dp)
     }
 
     @Test
-    fun gridLayoutFillsRowWidthForFourItems() {
-        val layout = GameHubViewport.launcherGridLayout(stageWidth = 720.dp, stageHeight = 400.dp, itemCount = 4)
-        assertTrue(layout.columns * layout.rows >= 4)
-        assertTrue(layout.tileWidth >= 140.dp)
-        assertTrue(layout.tileHeight <= 142.dp)
+    fun launcherGridNavigationMovesAcrossPages() {
+        assertEquals(12, gameHubLauncherGridMoveRight(11, count = 20))
+        assertEquals(11, gameHubLauncherGridMoveLeft(12))
+        assertEquals(0, gameHubLauncherGridLocalRow(3))
+        assertEquals(2, gameHubLauncherGridLocalRow(10))
     }
 
     @Test
-    fun gridNavigationMovesByRow() {
-        assertEquals(5, gameHubGridMoveDown(1, columns = 4, count = 8))
-        assertEquals(0, gameHubGridMoveUp(4, columns = 4, count = 8))
+    fun swipePagePreservesGridPositionWithinBounds() {
+        assertEquals(17, gameHubFocusIndexForPage(1, currentIndex = 5, columns = 4, pageSize = 12, count = 20))
+        assertEquals(19, gameHubFocusIndexForPage(1, currentIndex = 11, columns = 4, pageSize = 12, count = 20))
+        assertEquals(5, gameHubFocusIndexForPage(0, currentIndex = 5, columns = 4, pageSize = 12, count = 20))
     }
 
     @Test
-    fun gridNavigationMovesTwoByTwo() {
-        assertEquals(2, gameHubGridMoveDown(0, columns = 2, count = 4))
-        assertEquals(3, gameHubGridMoveDown(1, columns = 2, count = 4))
-        assertEquals(1, gameHubGridMoveRight(0, columns = 2, count = 4))
-        assertEquals(0, gameHubGridMoveLeft(1, columns = 2, count = 4))
-        assertEquals(0, gameHubGridMoveUp(2, columns = 2, count = 4))
-    }
-
-    @Test
-    fun gridNavigationDownStaysWhenNoCellBelow() {
-        assertEquals(2, gameHubGridMoveDown(2, columns = 3, count = 4))
+    fun launcherGridNavigationMovesByRowWithinPage() {
+        assertEquals(4, gameHubLauncherGridMoveDown(0, count = 8))
+        assertEquals(0, gameHubLauncherGridMoveUp(4))
     }
 
     @Test
@@ -201,7 +194,22 @@ class GameHubHomeMapperTest {
     }
 
     @Test
-    fun emulatorShelfClassifiesRetroarch() {
+    fun libraryGridNavigationPagesHorizontally() {
+        assertEquals(8, gameHubLibraryGridMoveRight(7, count = 16))
+        assertEquals(7, gameHubLibraryGridMoveLeft(8))
+        assertEquals(4, gameHubLibraryGridMoveDown(0, count = 10))
+        assertEquals(0, gameHubLibraryGridMoveUp(4))
+    }
+
+    @Test
+    fun connectedLibraryGridLayoutUsesFourByTwo() {
+        val layout = GameHubViewport.connectedLibraryGridLayout(stageWidth = 720.dp, stageHeight = 320.dp)
+        assertEquals(4, layout.columns)
+        assertEquals(2, layout.rows)
+    }
+
+    @Test
+    fun emulatorClassifierRecognizesRetroarch() {
         val app = LocalLibraryApp("com.retroarch", "RetroArch")
         assertEquals(GameHubAppCategory.Emulator, GameHubAppClassifier.category(app))
     }
