@@ -19,9 +19,9 @@ Both devices must be on the **same local Wi‑Fi** (Ethernet on the receiver hel
 ## Quick start
 
 1. Open **Receiver** on the TV or display. Leave it on the waiting screen.
-2. Open **Sender** on the handheld. Open **Screens** in the top bar and pick your receiver.
+2. Open **Sender** on the handheld. Open **Screens** from the **bottom mode dock** (centre tabs) and pick your receiver.
 3. On first connect, enter the **4-digit pairing code** shown on the TV. Turn on **Remember this screen** if you want.
-4. Open **Console Modes**, pick a profile (start with **Balanced**), and run **Test My Connection** if you plan to use Sharp or Cinema.
+4. Open **Console Modes** from the bottom mode dock, pick a profile (start with **Balanced**), and run **Test My Connection** if you plan to use Sharp or Cinema.
 5. On **Home**, tap **Enter Console Mode** and approve **screen capture** when Android asks.
 6. Play. The TV shows your handheld screen; controls stay on the handheld. Tap **Stop Console Mode** when finished.
 
@@ -31,17 +31,17 @@ Both devices must be on the **same local Wi‑Fi** (Ethernet on the receiver hel
 
 ## Sender (handheld) — main areas
 
-The sender is built like a **console launcher**, not a technical dashboard. Use the top bar to switch areas; the main panel below swaps content.
+The sender is built like a **console launcher**, not a technical dashboard. **Bottom mode dock** tabs (centre) switch the main panel above; a **top status bar** shows the clock and connectivity.
 
 | Tab | What it is for |
 | --- | --- |
 | **Home** | Pairing portal before a trusted screen; game shelves after trust (Favourites, Recent, emulators, Android games, Azahar tile). **Enter Console Mode** lives here. |
 | **Library** | Search, filters, favourites, add apps, launch on handheld or on TV. |
-| **Screens** | Find receivers, connect, pair, trust, search again. |
+| **Screens** | Find receivers, connect, pair, trust, search again. When paired, the **connected-screen status** (gradient pill with the receiver name) appears at the top of this panel. |
 | **Console Modes** | Stream quality presets, sound-related streaming toggles, **Test My Connection**. |
 | **Settings** | Look and feel, sound defaults, Screen Cloak, advanced streaming options, **System Status**. |
 
-**D-pad / controller:** one clear focus ring on the active tab and tiles. **Back** once returns focus to the top bar; **Back** again from the Home tab exits the app.
+**D-pad / controller:** one clear focus ring on the active tab and tiles. **Back** once returns focus to the **mode dock**; **Back** again from the **Home** tab exits the app. Controller hints sit **bottom-left** as coloured **A / B / X / Y** labels.
 
 Deep technical detail (codec, packet loss, encoder caps) stays under **Settings → System Status** so the launcher stays calm.
 

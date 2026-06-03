@@ -74,20 +74,22 @@ Stop/teardown must release projection, encoder, UDP sockets, and Screen Cloak ov
 
 ## Game Hub UI (sender)
 
-Single-activity Compose shell with inline panels:
+Single-activity Compose shell with inline panels in the main area and chrome at the top and bottom:
 
-- Top bar: Home, Library, Screens, Console Modes, Settings
-- `GameHubHomeScreen` owns D-pad routing (`GameHubFocusZone`, `GameHubInput`)
+- **Bottom mode dock** (`GameHubLauncherModeDockBar`): Home, Library, Screens, Console Modes, Settings — primary navigation (replaces the old top tab row).
+- **Top status bar** (`SenderStatusBar`): clock and connectivity indicators.
+- `GameHubHomeScreen` owns D-pad routing (`GameHubFocusZone`, `GameHubInput`). The focus zone is still named `TopBar` in code but maps to the **mode dock**.
 - Portal (pair/connect orb) vs launcher grid is mode-driven via `GameHubHomeMapper`
+- When a screen is trusted, the connected-screen **status pill** lives on the **Screens** panel (not over the Home launcher grid).
 - Settings builds rows in `GameHubSettingsFocus.kt`; full diagnostics remain on a dedicated System Status route
-- Trusted **screen pill** uses a tiled linear gradient (`TileMode.REPEAT`) driven by one shared phase
+- Trusted receiver labels on the Screens list use a tiled linear gradient (`TileMode.REPEAT`) driven by one shared phase
 - **Dock portal** card and glass modal sheets use the same outer rotating gradient ring (`modalGlow` on `gameHubFocusRing`)
 - **Library** filter chips show the gradient ring on the active filter (not only D-pad focus)
 - **Accent primary buttons** (`NoctPrimaryButton`, `NoctPrimaryConsoleButton`) use a shared glow/fill chrome in `NoctDesignSystem.kt`
 
 **Gradient performance:** `GameHubGradientPhaseProvider` exposes `LocalGameHubGradientPhase` from a single `rememberInfiniteTransition`. Only composables that read the local (screen pill, favourite stars, focused rings, open modals) recompose each animation frame—not the full launcher/library grid.
 
-Focus defaults to **Home** in the top bar on cold start so horizontal navigation works without pressing Up first. **Back** from deeper focus returns to the top-bar Home anchor before exiting the app.
+Focus defaults to **Home** in the mode dock on cold start so horizontal navigation works without pressing Up first. **Back** from deeper focus returns to the mode-dock Home anchor before exiting the app.
 
 ## Screen Cloak
 

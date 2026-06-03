@@ -15,7 +15,7 @@ Thank you for helping improve NoctDock. This project is a local-only Android doc
 - UI polish that does not change intended flows without discussion.
 - Protocol or discovery fixes that keep wire compatibility or document version bumps.
 - Tests for logic in `:noctdock-core` and module unit tests.
-- Documentation improvements.
+- Documentation improvements (keep [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md), [`CHANGELOG.md`](CHANGELOG.md), [`README.md`](README.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`DEVICE_TESTING.md`](DEVICE_TESTING.md), and Azahar docs in sync for user-visible behaviour).
 
 ## What to avoid
 
@@ -95,6 +95,7 @@ Add unit tests when you touch:
 - [ ] `./gradlew :noctdock-core:test` passes.
 - [ ] Sender and receiver debug builds assemble.
 - [ ] `DEVICE_TESTING.md` updated if manual steps change.
+- [ ] `docs/USER_GUIDE.md` and `CHANGELOG.md` updated for user-visible UX or protocol fields.
 
 ## Azahar fork (separate repo)
 

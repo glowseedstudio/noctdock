@@ -2,6 +2,17 @@
 
 All notable changes to NOCTDOCK are documented here.
 
+## [0.2.1] — 2026-06-03
+
+### Documentation
+
+- **User guide** and **architecture** updated to match the Game Hub layout shipped in **0.2.0**: **bottom mode dock** navigation (replacing outdated “top bar” wording) and the **connected-screen status** pill on the **Screens** tab.
+- **Contributing** guide: list of user-facing docs to keep in sync when behaviour changes.
+
+### Notes
+
+- Documentation-only release — no APK or protocol changes.
+
 ## [0.2.0] — 2026-05-21
 
 ### Game Hub layout
